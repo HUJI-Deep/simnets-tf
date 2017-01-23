@@ -7,7 +7,7 @@ set(SUMPOOL_PYTHON_VERSION "3.5" CACHE STR "Python version to use")
 find_package(PythonInterp ${SUMPOOL_PYTHON_VERSION})
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "-std=c++0x -fPIC -D_GLIBCXX_USE_CXX11_ABI=0" ${CMAKE_CXX_FLAGS})
+    set(CMAKE_CXX_FLAGS "-std=c++0x -fPIC  -Wall -D_GLIBCXX_USE_CXX11_ABI=0" ${CMAKE_CXX_FLAGS})
 endif()
 
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print(tf.sysconfig.get_include())"

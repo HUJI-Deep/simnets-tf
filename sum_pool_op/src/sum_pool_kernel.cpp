@@ -115,8 +115,7 @@ class SumPoolOpCPU : public OpKernel {
                     {
                         long outputRow = row / strides_[1];
                         long outputCol = col / strides_[2];
-                        auto sum = ComputeElementValid(batch, channel, row, col, input);
-                        output(batch, outputRow, outputCol, channel) = sum;
+                        output(batch, outputRow, outputCol, channel) = ComputeElementValid(batch, channel, row, col, input);
                     }
                 }
             }
@@ -135,8 +134,7 @@ class SumPoolOpCPU : public OpKernel {
                     {
                         long outputRow = row / strides_[1];
                         long outputCol = col / strides_[2];
-                        auto sum = ComputeElementValid(batch, channel, row, col, input);
-                        output(batch, outputRow, outputCol, channel) = sum;
+                        output(batch, outputRow, outputCol, channel) = ComputeElementSame(batch, channel, row, col, input);
                     }
                 }
             }

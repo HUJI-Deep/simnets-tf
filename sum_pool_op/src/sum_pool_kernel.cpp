@@ -2,7 +2,7 @@
 
 using namespace tensorflow;
 
-int GetOutputDim(int dim, int ksize, int stride, bool paddingSame)
+int GetOutputDim(int dim, long ksize, long stride, bool paddingSame)
 {
     if (paddingSame)
     {
@@ -14,34 +14,48 @@ int GetOutputDim(int dim, int ksize, int stride, bool paddingSame)
     }
 }
 
+template <typename T>
 class SumPoolOpCPU : public OpKernel {
  public:
-  explicit SumPoolOpCPU(OpKernelConstruction* context) : OpKernel(context) {}
+  explicit SumPoolOpCPU(OpKernelConstruction* context) : OpKernel(context)
+  {
+     std::string padding;
+     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding));
+     paddingSame_ = (padding == "SAME");
+     OP_REQUIRES_OK(context, context->GetAttr("ksize", &ksize_));
+     OP_REQUIRES_OK(context, context->GetAttr("strides", &strides_));
+  }
 
   void Compute(OpKernelContext* context) override {
     // Grab the input tensor
     const Tensor& input_tensor = context->input(0);
-    auto input = input_tensor.flat<int32>();
+    const auto& input = input_tensor.tensor<T,4>();
 
     // Create an output tensor
     Tensor* output_tensor = NULL;
-      OP_REQUIRES_OK(context->)
       TensorShape outputShape;
       outputShape.AddDim(input.dimension(0));
-      outputShape.AddDim(GetOutputDim(input.dimension(1), ksize[1], strides[1], paddingSame));
-      outputShape.AddDim(GetOutputDim(input.dimension(2), ksize[2], strides[2], paddingSame));
+      outputShape.AddDim(GetOutputDim(input.dimension(1), ksize_[1], strides_[1], paddingSame_));
+      outputShape.AddDim(GetOutputDim(input.dimension(2), ksize_[2], strides_[2], paddingSame_));
       outputShape.AddDim(input.dimension(3));
-    OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(),
+    OP_REQUIRES_OK(context, context->allocate_output(0, outputShape,
                                                      &output_tensor));
-    auto output = output_tensor->flat<int32>();
-
-    // Set all but the first element of the output tensor to 0.
-    const int N = input.size();
-    for (int i = 1; i < N; i++) {
-      output(i) = 0;
-    }
-
-    // Preserve the first input value if possible.
-    if (N > 0) output(0) = input(0);
+    std::cout << output_tensor->shape().DebugString() << std::endl;
+     context->set_output(0, *output_tensor);
   }
+private:
+   bool paddingSame_;
+   std::vector<int> ksize_;
+   std::vector<int> strides_;
 };
+
+REGISTER_KERNEL_BUILDER(
+        Name("SumPool")
+        .Device(DEVICE_CPU)
+        .TypeConstraint<int32>("T"),
+        SumPoolOpCPU<int>);
+REGISTER_KERNEL_BUILDER(
+        Name("SumPool")
+        .Device(DEVICE_CPU)
+        .TypeConstraint<float>("T"),
+        SumPoolOpCPU<float>);

@@ -46,7 +46,7 @@ Status MaxPoolInferShape(si::InferenceContext* c)
    TF_RETURN_IF_ERROR(c->ReplaceDim(outputShape, 1, rows, &outputShape));
    TF_RETURN_IF_ERROR(c->ReplaceDim(outputShape, 2, cols, &outputShape));
    c->set_output(0, outputShape);
-
+   return Status::OK();
 }
 
 REGISTER_OP("SumPool")

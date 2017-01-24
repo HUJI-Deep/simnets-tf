@@ -19,6 +19,9 @@ if (NOT ${TF_RES} EQUAL 0)
 endif()
 
 add_library(sum_pool_op SHARED src/sum_pool_op.cpp src/sum_pool_kernel.cpp)
+add_custom_target(sum_pool_test
+        COMMAND ${PYTHON_EXECUTABLE} sum_pool_test.py $<TARGET_FILE:sum_pool_op>
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
 set_target_properties(sum_pool_op PROPERTIES PREFIX "")
 target_include_directories(sum_pool_op PUBLIC ${TF_INCLUDES})

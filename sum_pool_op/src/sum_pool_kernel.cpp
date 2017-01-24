@@ -84,11 +84,11 @@ class SumPoolOpCPU : public OpKernel {
         long lowerBoundRow = row - kHalfRow + oddEvenRow;
         lowerBoundRow = std::max(0L, lowerBoundRow);
         long upperBoundRow = row + kHalfRow + 1;
-        upperBoundRow = std::min(data.dimension(1) - 1, upperBoundRow);
+        upperBoundRow = std::min(data.dimension(1), upperBoundRow);
         long lowerBoundCol = col - kHalfCol + oddEvenCol;
         lowerBoundCol = std::max(0L, lowerBoundCol);
         long upperBoundCol = col + kHalfCol + 1;
-        upperBoundCol = std::min(data.dimension(2) - 1, upperBoundCol);
+        upperBoundCol = std::min(data.dimension(2), upperBoundCol);
         for (long row_index = lowerBoundRow; row_index < upperBoundRow; ++row_index)
         {
             for (long col_index = lowerBoundCol; col_index < upperBoundCol; ++col_index)
@@ -124,11 +124,13 @@ class SumPoolOpCPU : public OpKernel {
 
     void SumPoolSame(typename TTypes<T, 4>::ConstTensor& input, typename TTypes<T, 4>::Tensor& output)
     {
+        long minRow = (strides_[1] / 2) - (1 - strides_[1] % 2);
+        long minCol = (strides_[2] / 2) - (1 - strides_[2] % 2);
         for (long batch = 0; batch < input.dimension(0); ++batch)
         {
-            for (long row = 0; row < input.dimension(1); row += strides_[1])
+            for (long row = minRow; row < input.dimension(1); row += strides_[1])
             {
-                for (long col = 0; col < input.dimension(2); col += strides_[2])
+                for (long col = minCol; col < input.dimension(2); col += strides_[2])
                 {
                     for (long channel = 0; channel < input.dimension(3); ++channel)
                     {

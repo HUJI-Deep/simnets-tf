@@ -8,8 +8,8 @@ def main():
     if not os.path.exists(d):
         os.mkdir(d)
 
-    k,s,r,p = 11,4,1,'SAME'
-    dim = 16
+    k,s,r,p = 2,6,1,'SAME'
+    dim = 6
     images = np.arange(dim*dim).reshape(1,dim,dim,1).astype(np.int32)
     image = np.squeeze(images)
     sess = tf.Session()

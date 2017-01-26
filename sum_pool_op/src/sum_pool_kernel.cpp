@@ -1,27 +1,14 @@
 #include "tensorflow/core/framework/op_kernel.h"
+#include "tensorflow/core/framework/common_shape_fns.h"
 
 using namespace tensorflow;
-
-int GetOutputDim(int dim, long ksize, long stride, bool paddingSame)
-{
-    if (paddingSame)
-    {
-        return (dim + stride - 1) / stride;
-    }
-    else
-    {
-        return (dim - ksize + stride) / stride;
-    }
-}
 
 template <typename T>
 class SumPoolOpCPU : public OpKernel {
  public:
   explicit SumPoolOpCPU(OpKernelConstruction* context) : OpKernel(context)
   {
-     std::string padding;
-     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding));
-     paddingSame_ = (padding == "SAME");
+     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
      OP_REQUIRES_OK(context, context->GetAttr("ksize", &ksize_));
      OP_REQUIRES_OK(context, context->GetAttr("strides", &strides_));
   }
@@ -34,39 +21,47 @@ class SumPoolOpCPU : public OpKernel {
 
     // Create an output tensor
     Tensor* output_tensor = NULL;
-      TensorShape outputShape;
-      outputShape.AddDim(input.dimension(0));
-      outputShape.AddDim(GetOutputDim(input.dimension(1), ksize_[1], strides_[1], paddingSame_));
-      outputShape.AddDim(GetOutputDim(input.dimension(2), ksize_[2], strides_[2], paddingSame_));
-      outputShape.AddDim(input.dimension(3));
-    OP_REQUIRES_OK(context, context->allocate_output(0, outputShape,
+
+      int64 outRowDim, outColDim;
+      int64 outRowPad, outColPad;
+      GetWindowedOutputSize(input.dimension(1), ksize_[1], strides_[1], padding_, &outRowDim, &outRowPad);
+      GetWindowedOutputSize(input.dimension(2), ksize_[2], strides_[2], padding_, &outColDim, &outColPad);
+
+      // Somehow, the values calculated in the previous function are not compatible with what actually goes on
+      // in convolutions, nor with the documentation of the function. the following code solves the problem
+      if (padding_ == SAME)
+      {
+          outRowPad = ((outRowDim - 1) * strides_[1] + ksize_[1] - input.dimension(1)) / 2;
+          outColPad = ((outColDim - 1) * strides_[2] + ksize_[2] - input.dimension(2)) / 2;
+      }
+
+      TensorShape outputShape{input.dimension(0), outRowDim, outColDim, input.dimension(3)};
+      OP_REQUIRES_OK(context, context->allocate_output(0, outputShape,
                                                      &output_tensor));
       auto output = output_tensor->tensor<T, 4>();
-      if (!paddingSame_)
-      {
-          SumPoolValid(input, output);
-      }
-      else
-      {
-          SumPoolSame(input, output);
-      }
-     context->set_output(0, *output_tensor);
+      SumPool(input, outRowPad, outColPad, output);
+
+      context->set_output(0, *output_tensor);
   }
 
-    T ComputeElementValid(long batch, long channel, long row, long col, const typename TTypes<T, 4>::ConstTensor& data)
+    /// Compute one output element
+    /// @param batch the batch dimension
+    /// @param channel the channel we are working on
+    /// @param rowStart the starting row, could be negative when padding is on
+    /// @param colStart the starting column, could be negative when padding is enabled
+    /// @param data the input tensor with rank 4
+    /// @returns the sum of all the elements in the window
+    T ComputeElement(int64 batch, int64 channel, int64 rowStart, int64 colStart, const typename TTypes<T, 4>::ConstTensor& data)
     {
         T sum{0};
-        long oddEvenRow = 1 - ksize_[1] % 2;
-        long oddEvenCol = 1 - ksize_[2] % 2;
-        long kHalfRow = ksize_[1] / 2;
-        long kHalfCol = ksize_[2] / 2;
-        long lowerBoundRow = row - kHalfRow + oddEvenRow;
-        long upperBoundRow = row + kHalfRow + 1;
-        long lowerBoundCol = col - kHalfCol + oddEvenCol;
-        long upperBoundCol = col + kHalfCol + 1;
-        for (long row_index = lowerBoundRow; row_index < upperBoundRow; ++row_index)
+        int64 lowerBoundRow = std::max(int64(0), rowStart);
+        int64 lowerBoundCol = std::max(int64(0), colStart);
+        int64 upperBoundRow = std::min(rowStart + ksize_[1], int64(data.dimension(1)));
+        int64 upperBoundCol = std::min(colStart + ksize_[2], int64(data.dimension(2)));
+
+        for (int64 row_index = lowerBoundRow; row_index < upperBoundRow; ++row_index)
         {
-            for (long col_index = lowerBoundCol; col_index < upperBoundCol; ++col_index)
+            for (int64 col_index = lowerBoundCol; col_index < upperBoundCol; ++col_index)
             {
                 sum += data(batch, row_index, col_index, channel);
             }
@@ -74,77 +69,33 @@ class SumPoolOpCPU : public OpKernel {
         return sum;
     }
 
-    T ComputeElementSame(long batch, long channel, long row, long col, const typename TTypes<T, 4>::ConstTensor& data)
+    /// Compute sum pool over the input tensor
+    /// @param input the input tensor with rank 4
+    /// @param padRow the row padding needed to calculate the indices
+    /// @param padCol the column padding needed to calculate the indices
+    /// @param output the output tensor, with rank 4
+    void SumPool(typename TTypes<T, 4>::ConstTensor& input, int64 padRow, int64 padCol, typename TTypes<T, 4>::Tensor& output)
     {
-        T sum{0};
-        long oddEvenRow = 1 - ksize_[1] % 2;
-        long oddEvenCol = 1 - ksize_[2] % 2;
-        long kHalfRow = ksize_[1] / 2;
-        long kHalfCol = ksize_[2] / 2;
-        long lowerBoundRow = row - kHalfRow + oddEvenRow;
-        lowerBoundRow = std::max(0L, lowerBoundRow);
-        long upperBoundRow = row + kHalfRow + 1;
-        upperBoundRow = std::min(data.dimension(1), upperBoundRow);
-        long lowerBoundCol = col - kHalfCol + oddEvenCol;
-        lowerBoundCol = std::max(0L, lowerBoundCol);
-        long upperBoundCol = col + kHalfCol + 1;
-        upperBoundCol = std::min(data.dimension(2), upperBoundCol);
-        for (long row_index = lowerBoundRow; row_index < upperBoundRow; ++row_index)
+        for (int64 batch = 0; batch < output.dimension(0); ++batch)
         {
-            for (long col_index = lowerBoundCol; col_index < upperBoundCol; ++col_index)
+            for (int64 row = 0; row < output.dimension(1); ++row)
             {
-                sum += data(batch, row_index, col_index, channel);
-            }
-        }
-        return sum;
-    }
-
-    void SumPoolValid(typename TTypes<T, 4>::ConstTensor& input, typename TTypes<T, 4>::Tensor& output)
-    {
-        long validMinRow = (ksize_[1] / 2) + (ksize_[1] % 2) - 1;
-        long validMinCol = (ksize_[2] / 2) + (ksize_[2] % 2) - 1;
-        long validMaxRow =  input.dimension(1) - (ksize_[1] / 2);
-        long validMaxCol =  input.dimension(2) - (ksize_[2] / 2);
-        for (long batch = 0; batch < input.dimension(0); ++batch)
-        {
-            for (long row = validMinRow; row < validMaxRow; row += strides_[1])
-            {
-                for (long col = validMinCol; col < validMaxCol; col += strides_[2])
+                for (int64 col = 0; col < output.dimension(2); ++col)
                 {
-                    for (long channel = 0; channel < input.dimension(3); ++channel)
+                    for (int64 channel = 0; channel < output.dimension(3); ++channel)
                     {
-                        long outputRow = row / strides_[1];
-                        long outputCol = col / strides_[2];
-                        output(batch, outputRow, outputCol, channel) = ComputeElementValid(batch, channel, row, col, input);
+                        int64 inputRowStart = row * strides_[1] - padRow;
+                        int64 inputColStart = col * strides_[2] - padCol;
+                        output(batch, row, col, channel) = ComputeElement(batch, channel, inputRowStart, inputColStart, input);
                     }
                 }
             }
         }
     }
 
-    void SumPoolSame(typename TTypes<T, 4>::ConstTensor& input, typename TTypes<T, 4>::Tensor& output)
-    {
-        long minRow = (strides_[1] / 2) - (1 - strides_[1] % 2);
-        long minCol = (strides_[2] / 2) - (1 - strides_[2] % 2);
-        for (long batch = 0; batch < input.dimension(0); ++batch)
-        {
-            for (long row = minRow; row < input.dimension(1); row += strides_[1])
-            {
-                for (long col = minCol; col < input.dimension(2); col += strides_[2])
-                {
-                    for (long channel = 0; channel < input.dimension(3); ++channel)
-                    {
-                        long outputRow = row / strides_[1];
-                        long outputCol = col / strides_[2];
-                        output(batch, outputRow, outputCol, channel) = ComputeElementSame(batch, channel, row, col, input);
-                    }
-                }
-            }
-        }
-    }
 
 private:
-   bool paddingSame_;
+   Padding padding_;
    std::vector<int> ksize_;
    std::vector<int> strides_;
 };

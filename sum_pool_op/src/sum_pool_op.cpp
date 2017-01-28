@@ -46,3 +46,12 @@ strides: The stride of the sliding window for each dimension of `value` (batch a
 padding: The type of padding algorithm to use.
 output: The sum pooled output tensor.
 )doc");
+
+REGISTER_OP("SumPoolGrad")
+        .Input("original_input: T")
+        .Input("incoming_gradient: T")
+        .Output("output_gradient: T")
+        .Attr("T: {float32, int32}")
+        .Attr("ksize: list(int) = [1,2,2,1]")
+        .Attr("strides: list(int) = [1,2,2,1]")
+        .Attr("padding: {'SAME', 'VALID'} = 'SAME'");

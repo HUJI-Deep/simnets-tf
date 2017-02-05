@@ -3,6 +3,21 @@
 
 using namespace tensorflow;
 
+namespace
+{
+    // Divide such that DivToSmall(a, b) = c ==> b*c <= a
+    // this is  different from regular integer division for negative numbers
+    template <typename T>
+    T DivToSmaller(T a, T b)
+    {
+        auto q = a / b;
+        // assuming round-toward-zero
+        if ((a < 0) && (q * b != a)) --q;
+        return q;
+    }
+
+}
+
 template <typename T>
 class SumPoolOpCPU : public OpKernel {
  public:
@@ -152,10 +167,10 @@ public:
     T ComputeElement(int64 batch, int64 channel, int64 rowStart, int64 colStart, const typename TTypes<T, 4>::ConstTensor& data)
     {
         T sum{0};
-        int64 lowerBoundRow = std::max(int64(0), rowStart);
-        int64 lowerBoundCol = std::max(int64(0), colStart);
-        int64 upperBoundRow = std::min(rowStart + ksize_[1] / strides_[1], int64(data.dimension(1) - 1));
-        int64 upperBoundCol = std::min(colStart + ksize_[2] / strides_[2], int64(data.dimension(2) - 1));
+        int64 lowerBoundRow = std::max(int64(0), DivToSmaller(rowStart, int64(strides_[1])) + 1);
+        int64 lowerBoundCol = std::max(int64(0), DivToSmaller(colStart, int64(strides_[2])) + 1);
+        int64 upperBoundRow = std::min(DivToSmaller(rowStart + ksize_[1], int64(strides_[1])), int64(data.dimension(1) - 1));
+        int64 upperBoundCol = std::min(DivToSmaller(colStart + ksize_[2], int64(strides_[2])), int64(data.dimension(2) - 1));
 
         for (int64 row_index = lowerBoundRow; row_index <= upperBoundRow; ++row_index)
         {
@@ -168,7 +183,7 @@ public:
     }
 
     /// Compute sum pool over the input tensor
-    /// @param input the input tensor with rank 4
+    /// @param original_output the original output tensor for the sum pool operation, with rank 4
     /// @param padRow the row padding needed to calculate the indices
     /// @param padCol the column padding needed to calculate the indices
     /// @param output the output tensor, with rank 4
@@ -183,9 +198,7 @@ public:
                     for (int64 channel = 0; channel < output.dimension(3); ++channel)
                     {
                         int64 inputRowStart = row + padRow - ksize_[1];
-                        inputRowStart = (inputRowStart / strides_[1]) + (inputRowStart % strides_[1] != 0);
                         int64 inputColStart = col + padCol - ksize_[2];
-                        inputColStart = (inputColStart / strides_[2]) + (inputColStart % strides_[2] != 0);
                         output(batch, row, col, channel) = ComputeElement(batch, channel, inputRowStart, inputColStart, original_output);
                     }
                 }

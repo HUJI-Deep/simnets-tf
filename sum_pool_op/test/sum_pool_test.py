@@ -10,6 +10,14 @@ else:
     sum_op_module = tf.load_op_library(so)
 sum_pool = sum_op_module.sum_pool
 
+@tf.RegisterGradient("SumPool")
+def _sum_pool_grad(op, grad):
+    inp = op.inputs[0]
+    padding = op.get_attr('padding')
+    strides = op.get_attr('strides')
+    ksize = op.get_attr('ksize')
+    grad_op = sum_op_module.sum_pool_grad(inp, grad, padding=padding, ksize=ksize, strides=strides)
+    return grad_op
 
 class SumPoolTest(tf.test.TestCase):
     def testAllOnesEvenValid(self):
@@ -17,6 +25,13 @@ class SumPoolTest(tf.test.TestCase):
             x = tf.ones((4, 6, 8, 10), tf.float32)
             res = sum_pool(x, padding='VALID', ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
             self.assertAllEqual(res.eval(), 4 * np.ones((4, 3, 4, 10)))
+
+    def testAllOnesEvenValidGrad(self):
+        with self.test_session():
+            x = tf.ones((4, 7, 7, 10), tf.int32)
+            res = sum_pool(x, padding='VALID', ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+            res_grad = sum_op_module.sum_pool_grad(x, res, padding='VALID', ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
+            self.assertAllEqual(res.eval(), 4 * np.ones((4, 3, 3, 10)))
 
     def testAllOnesOddValid(self):
         with self.test_session():
@@ -70,6 +85,27 @@ class SumPoolTest(tf.test.TestCase):
             tfa = tf.constant(a, tf.float32)
             res = sum_pool(tfa, padding='VALID', ksize=[1,2,2,1], strides=[1,2,2,1])
             self.assertAllEqual(res.eval(), b)
+
+    def testGradientSame(self):
+        x_shape = (3,8,7,2)
+        y_shape = (1,)
+        x_np = 6*np.random.normal(size=x_shape).astype(np.float32)
+        with self.test_session():
+            x = tf.constant(x_np)
+            y = tf.reduce_sum(sum_pool(x, padding='SAME', ksize=[1,2,3,1], strides=[1,3,2,1]))
+            symbolic, numeric = tf.test.compute_gradient(x, x_shape, y, y_shape, x_init_value=x_np, delta=1e-1)
+            self.assertAllClose(symbolic, numeric, atol=1e-2, rtol=1e-2)
+
+    def testGradientValid(self):
+        x_shape = (3,8,7,2)
+        y_shape = (1,)
+        x_np = 6*np.random.normal(size=x_shape).astype(np.float32)
+        with self.test_session():
+            x = tf.constant(x_np)
+            y = tf.reduce_sum(sum_pool(x, padding='VALID', ksize=[1,2,3,1], strides=[1,3,2,1]))
+            symbolic, numeric = tf.test.compute_gradient(x, x_shape, y, y_shape, x_init_value=x_np, delta=1e-1)
+            self.assertAllClose(symbolic, numeric, atol=1e-2, rtol=1e-2)
+
 
 
 if __name__ == '__main__':

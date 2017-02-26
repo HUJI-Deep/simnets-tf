@@ -24,12 +24,13 @@ if (NOT ${TF_RES} EQUAL 0)
     message(SEND_ERROR  "Can't import tensorflow")
 endif()
 
-include_directories(${TF_INCLUDES})
+include_directories(${TF_INCLUDES}
+                    third_party/maps/include)
 
 if (SIMNETS_WITH_CUDA)
     cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp src/similarity_kernel_gpu.cu)
 else()
-    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp)
+    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp include/ggemm_cpu.hpp)
 endif()
 
 #add_custom_target(sum_pool_test

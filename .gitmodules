@@ -1,0 +1,3 @@
+[submodule "third_party/maps"]
+	path = third_party/maps
+	url = https://github.com/HUJI-Deep/MAPS.git

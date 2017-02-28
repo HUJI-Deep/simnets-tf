@@ -30,7 +30,7 @@ include_directories(${TF_INCLUDES}
 if (SIMNETS_WITH_CUDA)
     cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp src/similarity_kernel_gpu.cu)
 else()
-    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp include/ggemm_cpu.hpp)
+    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp include/ggemm_cpu.hpp include/similarity_kernel_common.hpp)
 endif()
 
 #add_custom_target(sum_pool_test

@@ -1,6 +1,7 @@
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "similarity_kernel_common.hpp"
+#include "im2col.hpp"
 #include "ggemm_cpu.hpp"
 
 using namespace tensorflow;
@@ -18,6 +19,7 @@ public:
         auto input = context->input(0);
         auto templates = context->input(1);
         auto weights = context->input(2);
+        const T block_out_of_bounds_value{0};
 
         auto input_t = input.tensor<T, 4>();
         auto templates_t = templates.tensor<T, 4>();
@@ -32,17 +34,17 @@ public:
         const int C_DIM = 2;
         long batch = input_t.dimension(BATCH_DIM);
         long height = input_t.dimension(H_DIM);
-        long width = input_t.dimension((W_DIM);
+        long width = input_t.dimension(W_DIM);
         long channels = input_t.dimension(C_DIM);
 
 
-        int block_h = ksize_[1];
-        int block_w = ksize_[2];
-        int block_c = ksize_[3];
+        int block_h = this->ksize_[1];
+        int block_w = this->ksize_[2];
+        int block_c = this->ksize_[3];
 
-        int stride_h = stride_[1];
-        int stride_w = stride_[2];
-        int stride_c = stride_[3];
+        int stride_h = this->stride_[1];
+        int stride_w = this->stride_[2];
+        int stride_c = this->stride_[3];
 
         int64 out_h;
         int64 out_w;
@@ -51,16 +53,14 @@ public:
         int64 pad_h;
         int64 pad_w;
         int64 pad_c;
-        GetWindowedOutputSize(height, block_h, stride_h, padding_, &out_h, &pad_h);
-        GetWindowedOutputSize(width, block_w, stride_w, padding_, &out_w, &pad_w);
-        GetWindowedOutputSize(channels, block_c, stride_c, padding_, &out_c, &pad_c);
+        GetWindowedOutputSize(height, block_h, stride_h, this->padding_, &out_h, &pad_h);
+        GetWindowedOutputSize(width, block_w, stride_w, this->padding_, &out_w, &pad_w);
+        GetWindowedOutputSize(channels, block_c, stride_c, this->padding_, &out_c, &pad_c);
 
         bool is_1x1 = block_c == channels && block_w == 1 && block_h == 1
                   && stride_h == 1 && stride_w == 1
                   && pad_c == 0 && pad_h == 0 && pad_w == 0;
 
-        const int params_size = num_instances * block_c * block_h * block_w;
-        const int padding_size = ggemm_padded_output_size(num_instances, block_c * block_h * block_w);
 
         Tensor *output = NULL;
 
@@ -77,51 +77,48 @@ public:
         TensorShape col_buffer_shape{1,
                                      block_c * block_h * block_w, out_c * out_h, out_w};
 
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
+        auto col_buffer_t = col_buffer.tensor<T, 3>();
+
         // TODO: Lookup SetPadding
-        
+
 
         using Dtype = T;
         Dtype *col_buff = NULL;
         if (!is_1x1) {
-            col_buff = col_buffer_.mutable_cpu_data();
+            col_buff = col_buffer_t.data();
         }
-        const Dtype *templates = this->blobs_[0]->cpu_data();
-        const Dtype *weights = this->blobs_[1]->cpu_data();
 
-        const int params_size = num_instances_ * block_w_ * block_h_ * block_c_;
-        typename vec<Dtype>::vec2 *inter_params = static_cast<typename vec<Dtype>::vec2 *>(interlaced_params_->mutable_cpu_data());
-        interlace_cpu<Dtype>(params_size, templates, weights, inter_params);
+        // TODO: Check that all dimensions are consistent with ggemm
+        const Dtype *templates_buff = templates_t.data();
+        const Dtype *weights_buff = weights_t.data();
 
-        const Dtype *bottom_data = bottom[bottom_idx]->cpu_data();
-        Dtype *top_data = top[bottom_idx]->mutable_cpu_data();
-        for (int n = 0; n < num_; ++n) {
+        const int params_size = num_instances * block_w * block_h * block_c;
+        const int padding_size = ggemm_padded_output_size(num_instances, block_c * block_h * block_w);
+
+        Tensor interlaced;
+        TensorShape interlaced_shape{2 * (params_size + padding_size)};
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, interlaced_shape, &interlaced));
+        auto interlaced_t = col_buffer.tensor<T, 3>();
+
+        typename vec<Dtype>::vec2 *inter_params = static_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
+        interlace_cpu<Dtype>(params_size, templates_buff, weights_buff, inter_params);
+
+        const Dtype *bottom_data = input_t.data();
+        Dtype *top_data = input_t.data();
+        for (int n = 0; n < batch; ++n) {
             // im2col transformation: unroll input regions for filtering
             // into column matrix for multplication.
-            if (!is_1x1_) {
-                im2col_3d_cpu(
-                        bottom_data + bottom[bottom_idx]->offset(n),
-                        channels_, height_, width_,
-                        block_c_, block_h_, block_w_,
-                        pad_c_, pad_h_, pad_w_,
-                        stride_c_, stride_h_, stride_w_,
-                        col_buff, true, block_out_of_bounds_value_);
+            if (!is_1x1) {
+                simnets_tf::im2col_3d_cpu(
+                        bottom_data + n * (height * width * channels),
+                        channels, height, width,
+                        block_c, block_h, block_w,
+                        pad_c, pad_h, pad_w,
+                        stride_c, stride_h, stride_w,
+                        col_buff, true, block_out_of_bounds_value);
             } else {  // special case for 1x1 convolution
-                if (!normalize_patches_) {
-                    col_buff = bottom[bottom_idx]->mutable_cpu_data() + bottom[bottom_idx]->offset(n);
-                } else {
-                    caffe_copy(K_ * N_, bottom[bottom_idx]->cpu_data() + bottom[bottom_idx]->offset(n), col_buff);
-                }
-            }
-
-            if (normalize_patches_) {
-                caffe_cpu_transpose(K_, N_,
-                                    col_buff,
-                                    row_buffer_.mutable_cpu_data());
-                caffe_cpu_normalize_patches_rows_forward(K_, N_, normalization_fudge_factor_,
-                                                         row_buffer_.mutable_cpu_data(), normalize_variance_);
-                caffe_cpu_transpose(N_, K_,
-                                    row_buffer_.cpu_data(),
-                                    col_buff);
+                    col_buff = input_t.data() + n * (height * width * channels);
             }
 
             switch (this->layer_param_.similarity_param().similarity_function()) {

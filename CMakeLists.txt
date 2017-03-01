@@ -24,7 +24,8 @@ if (NOT ${TF_RES} EQUAL 0)
     message(SEND_ERROR  "Can't import tensorflow")
 endif()
 
-include_directories(${TF_INCLUDES}
+include_directories(include
+                    ${TF_INCLUDES}
                     third_party/maps/include)
 
 if (SIMNETS_WITH_CUDA)

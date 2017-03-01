@@ -51,7 +51,7 @@ SimilarityKernelCommon<T>::SimilarityKernelCommon(tensorflow::OpKernelConstructi
         similarity_function_ = SIM_FUNC_CONVOLUTION;
     }
     else {
-        assert(false, "bad similarity function");
+        assert(false); // Bad similarity function
     }
 
     OP_REQUIRES_OK(context, context->GetAttr("normalization_term", &normalization_term_));

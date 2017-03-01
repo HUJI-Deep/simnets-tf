@@ -29,9 +29,19 @@ include_directories(include
                     third_party/maps/include)
 
 if (SIMNETS_WITH_CUDA)
-    cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp src/similarity_kernel_gpu.cu)
+    cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
+            include/ggemm_cpu.hpp
+            include/similarity_kernel_common.hpp
+            include/im2col.hpp
+            src/im2col.cpp
+            src/similarity_kernel_gpu.cu
+            src/im2col.cu)
 else()
-    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp include/ggemm_cpu.hpp include/similarity_kernel_common.hpp include/im2col.hpp)
+    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
+                                  include/ggemm_cpu.hpp
+                                  include/similarity_kernel_common.hpp
+                                  include/im2col.hpp
+                                  src/im2col.cpp)
 endif()
 
 #add_custom_target(sum_pool_test

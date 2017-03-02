@@ -7,10 +7,10 @@
 using namespace tensorflow;
 
 template<typename T>
-class SimilarityKernelCPU : public SimilarityKernelCommon<T> {
+class SimilarityKernelCPU : public SimilarityKernelCommon {
 public:
 
-    using Base = SimilarityKernelCommon<T>;
+    using Base = SimilarityKernelCommon;
     using Dtype = T;
 
     SimilarityKernelCPU(OpKernelConstruction *context) : Base(context) {}
@@ -58,8 +58,8 @@ public:
         GetWindowedOutputSize(channels, block_c, stride_c, this->padding_, &out_c, &pad_c);
 
         bool is_1x1 = block_c == channels && block_w == 1 && block_h == 1
-                  && stride_h == 1 && stride_w == 1
-                  && pad_c == 0 && pad_h == 0 && pad_w == 0;
+                      && stride_h == 1 && stride_w == 1
+                      && pad_c == 0 && pad_h == 0 && pad_w == 0;
 
 
         Tensor *output = NULL;
@@ -74,14 +74,14 @@ public:
         long N = out_h * out_w * out_c;
 
         Tensor col_buffer;
-        TensorShape col_buffer_shape{1,
-                                     block_c * block_h * block_w, out_c * out_h, out_w};
+        int col_buffer_padding = ggemm_padded_output_size(block_c * block_h * block_w,
+                                                          out_c * out_h * out_w);
+        TensorShape col_buffer_shape{
+                block_c * block_h * block_w * out_c * out_h * out_w + col_buffer_padding};
+
 
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
         auto col_buffer_t = col_buffer.tensor<T, 3>();
-
-        // TODO: Lookup SetPadding
-
 
         using Dtype = T;
         Dtype *col_buff = NULL;
@@ -101,11 +101,11 @@ public:
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, interlaced_shape, &interlaced));
         auto interlaced_t = col_buffer.tensor<T, 3>();
 
-        typename vec<Dtype>::vec2 *inter_params = static_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
+        typename vec<Dtype>::vec2 *inter_params = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
         interlace_cpu<Dtype>(params_size, templates_buff, weights_buff, inter_params);
 
         const Dtype *bottom_data = input_t.data();
-        Dtype *top_data = input_t.data();
+        Dtype *top_data = output_t.data();
         for (int n = 0; n < batch; ++n) {
             // im2col transformation: unroll input regions for filtering
             // into column matrix for multplication.
@@ -118,85 +118,60 @@ public:
                         stride_c, stride_h, stride_w,
                         col_buff, true, block_out_of_bounds_value);
             } else {  // special case for 1x1 convolution
-                    col_buff = input_t.data() + n * (height * width * channels);
+                col_buff = input_t.data() + n * (height * width * channels);
             }
 
-            switch (this->layer_param_.similarity_param().similarity_function()) {
-                case SimilarityParameter_SimilarityFunction_CONVOLUTION:
-                    ggemm_cpu
-                            <typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                    sim_linear_forward<Dtype>, ggemm_add<Dtype>, false>
-                            (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0, 0);
-                    break;
-                case SimilarityParameter_SimilarityFunction_L1:
+            switch (this->similarity_function_) {
+                case SIM_FUNC_L1:
                     ggemm_cpu
                             <typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
                                     sim_l1_forward<Dtype>, ggemm_add<Dtype>, false>
-                            (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0, 0);
+                            (M, N, K, inter_params, col_buff, top_data + n * (out_c * out_h * out_w), 0, 0);
                     break;
-                case SimilarityParameter_SimilarityFunction_L2:
-                    if (normalization_term_) {
-                        if (use_log_space_weight_param_) {
-                            if (ignore_nan_input_) {
-                                ggemm_cpu
-                                        <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                sim_l2_normalized_forward<Dtype, true, true>, ggemm_add<Dtype>, false>
-                                        (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0,
-                                         normalization_term_fudge_);
-                            } else {
-                                ggemm_cpu
-                                        <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                sim_l2_normalized_forward<Dtype, true, false>, ggemm_add<Dtype>, false>
-                                        (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0,
-                                         normalization_term_fudge_);
-                                caffe_add_scalar<Dtype>(M_ * N_, Dtype(-0.5) * Dtype(K_) * std::log(2.0 * M_PI),
-                                                        top_data + top[bottom_idx]->offset(n));
-                            }
+                case SIM_FUNC_L2:
+                    if (this->normalization_term_) {
+                        if (this->ignore_nan_input_) {
+                            ggemm_cpu
+                                    <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
+                                            sim_l2_normalized_forward<Dtype, false, true>, ggemm_add<Dtype>, false>
+                                    (M, N, K, inter_params, col_buff, top_data + n * (out_c * out_h * out_w), 0,
+                                     this->normalization_term_fudge_);
                         } else {
-                            if (ignore_nan_input_) {
-                                ggemm_cpu
-                                        <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                sim_l2_normalized_forward<Dtype, false, true>, ggemm_add<Dtype>, false>
-                                        (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0,
-                                         normalization_term_fudge_);
-                            } else {
-                                ggemm_cpu
-                                        <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                sim_l2_normalized_forward<Dtype, false, false>, ggemm_add<Dtype>, false>
-                                        (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0,
-                                         normalization_term_fudge_);
-                                caffe_add_scalar<Dtype>(M_ * N_, Dtype(-0.5) * Dtype(K_) * std::log(2.0 * M_PI),
-                                                        top_data + top[bottom_idx]->offset(n));
-                            }
+                            ggemm_cpu
+                                    <typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
+                                            sim_l2_normalized_forward<Dtype, false, false>, ggemm_add<Dtype>, false>
+                                    (M, N, K, inter_params, col_buff, top_data + n * (out_c * out_h * out_w), 0,
+                                     this->normalization_term_fudge_);
+                            // We need to add the normalization term, we'll do it for the entire output, outside the loop
                         }
                     } else {
-                        if (use_log_space_weight_param_) {
-                            ggemm_cpu
-                                    <typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                            sim_l2_forward<Dtype, true>, ggemm_add<Dtype>, false>
-                                    (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0, 0);
-                        } else {
-                            ggemm_cpu
-                                    <typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                            sim_l2_forward<Dtype, false>, ggemm_add<Dtype>, false>
-                                    (M_, N_, K_, inter_params, col_buff, top_data + top[bottom_idx]->offset(n), 0, 0);
-                        }
-
+                        ggemm_cpu
+                                <typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
+                                        sim_l2_forward<Dtype, false>, ggemm_add<Dtype>, false>
+                                (M, N, K, inter_params, col_buff, top_data + n * (out_c * out_h * out_w), 0, 0);
                     }
                     break;
                 default:
                     break;
             }
-            // Add bias.
-            if (bias_term_) {
-                caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, num_instances_,
-                                      N_, 1, (Dtype) 1., this->blobs_[2]->cpu_data(),
-                                      bias_multiplier_.cpu_data(),
-                                      (Dtype) 1., top_data + top[bottom_idx]->offset(n));
+
+            if (this->similarity_function_ == SIM_FUNC_L2 && this->normalization_term_ && !this->ignore_nan_input_) {
+                output_t = output_t + output_t.constant(Dtype(-0.5) * Dtype(K) * std::log(2.0 * M_PI));
             }
         }
     }
 };
+
+REGISTER_KERNEL_BUILDER(
+        Name("Similarity")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<float>("T"),
+        SimilarityKernelCPU<float>);
+REGISTER_KERNEL_BUILDER(
+        Name("Similarity")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<double>("T"),
+        SimilarityKernelCPU<double>);
 
 
 

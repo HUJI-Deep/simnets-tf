@@ -157,7 +157,7 @@ public:
             }
 
             if (this->similarity_function_ == SIM_FUNC_L2 && this->normalization_term_ && !this->ignore_nan_input_) {
-                output_t = output_t + output_t.constant(Dtype(-0.5) * Dtype(K) * std::log(2.0 * M_PI));
+                output_t.device(context->eigen_cpu_device()) += output_t.constant(Dtype(-0.5) * Dtype(K) * std::log(2.0 * M_PI));
             }
         }
     }

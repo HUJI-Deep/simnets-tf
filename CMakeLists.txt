@@ -28,6 +28,8 @@ include_directories(include
                     ${TF_INCLUDES}
                     third_party/maps/include)
 
+add_compile_options(-DEIGEN_USE_THREADS)
+
 if (SIMNETS_WITH_CUDA)
     cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
             include/ggemm_cpu.hpp

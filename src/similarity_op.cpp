@@ -17,9 +17,9 @@ REGISTER_OP("Similarity")
         .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
-        .Attr("ignore_nan_input: bool = false")
-        .SetShapeFn(si::Conv2DShape);
-//         .Doc(R"doc(
+        .Attr("ignore_nan_input: bool = false");
+//      .SetShapeFn(si::Conv2DShape);
+//      .Doc(R"doc(
 // Performs sum pooling on the input.
 // Each entry in `output` is the sum of the corresponding size `ksize`
 // window in `value`.

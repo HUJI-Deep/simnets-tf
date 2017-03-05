@@ -25,13 +25,13 @@ public:
         auto templates_t = templates.tensor<T, 4>();
         auto weights_t = weights.tensor<T, 4>();
 
-        long num_instances = templates_t.dimension(1);
+        long num_instances = templates_t.dimension(0);
 
-        // CM NCHW <--> RM WHCN
-        const int BATCH_DIM = 3;
-        const int H_DIM = 1;
-        const int W_DIM = 0;
-        const int C_DIM = 2;
+        const int BATCH_DIM = 0;
+        const int C_DIM = 1;
+        const int H_DIM = 2;
+        const int W_DIM = 3;
+
         long batch = input_t.dimension(BATCH_DIM);
         long height = input_t.dimension(H_DIM);
         long width = input_t.dimension(W_DIM);
@@ -40,11 +40,11 @@ public:
 
         int block_h = this->ksize_[1];
         int block_w = this->ksize_[2];
-        int block_c = this->ksize_[3];
+        int block_c = channels;
 
         int stride_h = this->stride_[1];
         int stride_w = this->stride_[2];
-        int stride_c = this->stride_[3];
+        int stride_c = channels;
 
         int64 out_h;
         int64 out_w;
@@ -55,8 +55,9 @@ public:
         int64 pad_c;
         GetWindowedOutputSize(height, block_h, stride_h, this->padding_, &out_h, &pad_h);
         GetWindowedOutputSize(width, block_w, stride_w, this->padding_, &out_w, &pad_w);
-        GetWindowedOutputSize(channels, block_c, stride_c, this->padding_, &out_c, &pad_c);
-
+        //GetWindowedOutputSize(channels, block_c, stride_c, this->padding_, &out_c, &pad_c);
+        out_c = num_instances;
+        pad_c = 0;
         bool is_1x1 = block_c == channels && block_w == 1 && block_h == 1
                       && stride_h == 1 && stride_w == 1
                       && pad_c == 0 && pad_h == 0 && pad_w == 0;
@@ -64,24 +65,24 @@ public:
 
         Tensor *output = NULL;
 
-        TensorShape output_shape{out_w, out_h, out_c, batch};
+        TensorShape output_shape{batch, out_c, out_h, out_w};
         OP_REQUIRES_OK(context, context->allocate_output(0, output_shape,
                                                          &output));
         auto output_t = output->tensor<T, 4>();
 
         long M = num_instances;
         long K = block_c * block_h * block_w;
-        long N = out_h * out_w * out_c;
+        long N = out_h * out_w;
 
         Tensor col_buffer;
         int col_buffer_padding = ggemm_padded_output_size(block_c * block_h * block_w,
-                                                          out_c * out_h * out_w);
+                                                          out_h * out_w);
         TensorShape col_buffer_shape{
-                block_c * block_h * block_w * out_c * out_h * out_w + col_buffer_padding};
+                block_c * block_h * block_w * out_h * out_w + col_buffer_padding};
 
 
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
-        auto col_buffer_t = col_buffer.tensor<T, 3>();
+        auto col_buffer_t = col_buffer.tensor<T, 1>();
 
         using Dtype = T;
         Dtype *col_buff = NULL;
@@ -99,7 +100,7 @@ public:
         Tensor interlaced;
         TensorShape interlaced_shape{2 * (params_size + padding_size)};
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, interlaced_shape, &interlaced));
-        auto interlaced_t = col_buffer.tensor<T, 3>();
+        auto interlaced_t = interlaced.tensor<T, 1>();
 
         typename vec<Dtype>::vec2 *inter_params = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
         interlace_cpu<Dtype>(params_size, templates_buff, weights_buff, inter_params);

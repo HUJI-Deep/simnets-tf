@@ -24,6 +24,11 @@ const int GGEMM_CUDA_NUM_THREADS = 1024;
 const int GGEMM_CUDA_NUM_THREADS = 512;
 #endif
 
+#define CUDA_KERNEL_LOOP(i, n) \
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; \
+       i < (n); \
+       i += blockDim.x * gridDim.x)
+
 // CUDA: number of blocks for threads.
 inline int GGEMM_GET_BLOCKS(const int N) {
     return (N + GGEMM_CUDA_NUM_THREADS - 1) / GGEMM_CUDA_NUM_THREADS;

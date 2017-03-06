@@ -13,7 +13,7 @@ endif()
 
 if (SIMNETS_WITH_CUDA)
     find_package(CUDA REQUIRED)
-    set(CUDA_NVCC_FLAGS -std=c++11)
+    set(CUDA_NVCC_FLAGS -std=c++11 -DEIGEN_USE_GPU)
 endif()
 
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print(tf.sysconfig.get_include())"
@@ -25,8 +25,7 @@ if (NOT ${TF_RES} EQUAL 0)
 endif()
 
 include_directories(include
-                    ${TF_INCLUDES}
-                    third_party/maps/include)
+                    ${TF_INCLUDES})
 
 add_compile_options(-DEIGEN_USE_THREADS)
 

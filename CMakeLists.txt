@@ -36,13 +36,13 @@ if (SIMNETS_WITH_CUDA)
             include/im2col.hpp
             src/im2col.cpp
             src/similarity_kernel_gpu.cu
-            src/im2col.cu)
+            src/im2col.cu src/similarity_ref_op.cpp)
 else()
     add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
                                   include/ggemm_cpu.hpp
                                   include/similarity_kernel_common.hpp
                                   include/im2col.hpp
-                                  src/im2col.cpp)
+                                  src/im2col.cpp src/similarity_ref_op.cpp)
 endif()
 
 #add_custom_target(sum_pool_test

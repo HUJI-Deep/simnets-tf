@@ -63,6 +63,7 @@ public:
                                      typename TTypes<Dtype, 4>::Tensor templates_t,
                                      typename TTypes<Dtype, 4>::Tensor output_t) {
 
+        output_t = output_t.constant(0);
         int groups = 1;
         int o_g = output_t.dimension(1);
         int k_g = input_t.dimension(1);

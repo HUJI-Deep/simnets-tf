@@ -62,7 +62,7 @@ public:
         auto interlaced_t = interlaced.tensor<T, 1>();
 
         typename vec<Dtype>::vec2 *inter_params = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
-        interlace_cpu<Dtype>(params_size, weights_buff, templates_buff, inter_params);
+        interlace_cpu<Dtype>(params_size, templates_buff, weights_buff, inter_params);
 
         const Dtype *bottom_data = input_t.data();
         Dtype *top_data = output_t.data();

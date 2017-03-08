@@ -81,16 +81,16 @@ public:
                             for (int k = 0; k < k_g; k++) {
                                 for (int p = 0; p < block_h_; p++) {
                                     for (int q = 0; q < block_w_; q++) {
-                                        const Dtype u = *ptr_at<T>(weights_t, o + o_head, k, p, q);
+                                        const Dtype u = weights_t(o + o_head, k, p, q);
                                         Dtype u_weight = u;
 
-                                        const Dtype z = *ptr_at<T>(templates_t, o + o_head, k, p, q);
+                                        const Dtype z = templates_t(o + o_head, k, p, q);
                                         int in_y = y * stride_h_ - pad_h_ + p;
                                         int in_x = x * stride_w_ - pad_w_ + q;
                                         Dtype pixel{0};
                                         if (in_y >= 0 && in_y < height_
                                             && in_x >= 0 && in_x < width_) {
-                                            pixel = *ptr_at<T>(input_t, n, k + k_head, in_y, in_x);
+                                            pixel = input_t(n, k + k_head, in_y, in_x);
                                         }
                                         if (ignore_nan_input_ && std::isnan(pixel)) {
                                             continue;
@@ -101,7 +101,7 @@ public:
                                             value += 0.5 * std::log(u + normalization_term_fudge_)
                                                      - 0.5 * std::log(2.0 * M_PI);
                                         }
-                                        *ptr_at<T>(output_t, n, o + o_head, y, x) += value;
+                                        output_t(n, o + o_head, y, x) += value;
                                     }
                                 }
                             }

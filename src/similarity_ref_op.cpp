@@ -64,46 +64,38 @@ public:
                                      typename TTypes<Dtype, 4>::Tensor output_t) {
 
         output_t = output_t.constant(0);
-        int groups = 1;
-        int o_g = output_t.dimension(1);
-        int k_g = input_t.dimension(1);
-        int o_head, k_head;
 
         // Similarity
         for (int n = 0; n < batch_; n++) {
-            for (int g = 0; g < groups; g++) {
-                o_head = o_g * g;
-                k_head = k_g * g;
-                for (int o = 0; o < o_g; o++) {
-                    for (int y = 0; y < out_h_; y++) {
-                        for (int x = 0; x < out_w_; x++) {
-                            Dtype mean = 0;
-                            Dtype var = 0;
-                            for (int k = 0; k < k_g; k++) {
-                                for (int p = 0; p < block_h_; p++) {
-                                    for (int q = 0; q < block_w_; q++) {
-                                        const Dtype u = weights_t(o + o_head, k, p, q);
-                                        Dtype u_weight = u;
+            for (int o = 0; o < num_instances_; o++) {
+                for (int y = 0; y < out_h_; y++) {
+                    for (int x = 0; x < out_w_; x++) {
+                        Dtype mean = 0;
+                        Dtype var = 0;
+                        for (int k = 0; k < block_c_; k++) {
+                            for (int p = 0; p < block_h_; p++) {
+                                for (int q = 0; q < block_w_; q++) {
+                                    const Dtype u = weights_t(o, k, p, q);
+                                    Dtype u_weight = u;
 
-                                        const Dtype z = templates_t(o + o_head, k, p, q);
-                                        int in_y = y * stride_h_ - pad_h_ + p;
-                                        int in_x = x * stride_w_ - pad_w_ + q;
-                                        Dtype pixel{0};
-                                        if (in_y >= 0 && in_y < height_
-                                            && in_x >= 0 && in_x < width_) {
-                                            pixel = input_t(n, k + k_head, in_y, in_x);
-                                        }
-                                        if (ignore_nan_input_ && std::isnan(pixel)) {
-                                            continue;
-                                        }
-                                        Dtype value = u_weight * similarity_function(similarity_function_, pixel, z, k_g * block_h_ * block_w_);
-                                        if (normalization_term_) {
-                                            value *= 0.5;
-                                            value += 0.5 * std::log(u + normalization_term_fudge_)
-                                                     - 0.5 * std::log(2.0 * M_PI);
-                                        }
-                                        output_t(n, o + o_head, y, x) += value;
+                                    const Dtype z = templates_t(o, k, p, q);
+                                    int in_y = y * stride_h_ - pad_h_ + p;
+                                    int in_x = x * stride_w_ - pad_w_ + q;
+                                    Dtype pixel{0};
+                                    if (in_y >= 0 && in_y < height_
+                                        && in_x >= 0 && in_x < width_) {
+                                        pixel = input_t(n, k, in_y, in_x);
                                     }
+                                    if (ignore_nan_input_ && std::isnan(pixel)) {
+                                        continue;
+                                    }
+                                    Dtype value = u_weight * similarity_function(similarity_function_, pixel, z, block_h_ * block_w_);
+                                    if (normalization_term_) {
+                                        value *= 0.5;
+                                        value += 0.5 * std::log(u + normalization_term_fudge_)
+                                                 - 0.5 * std::log(2.0 * M_PI);
+                                    }
+                                    output_t(n, o, y, x) += value;
                                 }
                             }
                         }

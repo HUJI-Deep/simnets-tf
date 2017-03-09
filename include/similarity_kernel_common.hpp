@@ -25,6 +25,7 @@ protected:
     bool normalization_term_;
     float normalization_term_fudge_;
     bool ignore_nan_input_;
+    float out_of_bounds_value_;
     SimilarityFunction similarity_function_;
 
     template <typename  T>
@@ -84,6 +85,7 @@ SimilarityKernelCommon::SimilarityKernelCommon(tensorflow::OpKernelConstruction 
     OP_REQUIRES_OK(context, context->GetAttr("normalization_term", &normalization_term_));
     OP_REQUIRES_OK(context, context->GetAttr("normalization_term_fudge", &normalization_term_fudge_));
     OP_REQUIRES_OK(context, context->GetAttr("ignore_nan_input", &ignore_nan_input_));
+    OP_REQUIRES_OK(context, context->GetAttr("out_of_bounds_value", &out_of_bounds_value_));
 }
 
 template <typename T>

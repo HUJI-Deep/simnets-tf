@@ -70,18 +70,14 @@ public:
             for (int o = 0; o < num_instances_; o++) {
                 for (int y = 0; y < out_h_; y++) {
                     for (int x = 0; x < out_w_; x++) {
-                        Dtype mean = 0;
-                        Dtype var = 0;
                         for (int k = 0; k < block_c_; k++) {
                             for (int p = 0; p < block_h_; p++) {
                                 for (int q = 0; q < block_w_; q++) {
                                     const Dtype u = weights_t(o, k, p, q);
-                                    Dtype u_weight = u;
-
                                     const Dtype z = templates_t(o, k, p, q);
                                     int in_y = y * stride_h_ - pad_h_ + p;
                                     int in_x = x * stride_w_ - pad_w_ + q;
-                                    Dtype pixel{0};
+                                    Dtype pixel = out_of_bounds_value_; // Needs to be specified! 
                                     if (in_y >= 0 && in_y < height_
                                         && in_x >= 0 && in_x < width_) {
                                         pixel = input_t(n, k, in_y, in_x);
@@ -89,7 +85,7 @@ public:
                                     if (ignore_nan_input_ && std::isnan(pixel)) {
                                         continue;
                                     }
-                                    Dtype value = u_weight * similarity_function(similarity_function_, pixel, z, block_h_ * block_w_);
+                                    Dtype value = u * similarity_function(similarity_function_, pixel, z, block_h_ * block_w_);
                                     if (normalization_term_) {
                                         value *= 0.5;
                                         value += 0.5 * std::log(u + normalization_term_fudge_)
@@ -118,7 +114,8 @@ REGISTER_OP("SimilarityRef")
         .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
-        .Attr("ignore_nan_input: bool = false");
+        .Attr("ignore_nan_input: bool = false")
+        .Attr("out_of_bounds_value: float = 0.0");
 
 REGISTER_KERNEL_BUILDER(
         Name("SimilarityRef")

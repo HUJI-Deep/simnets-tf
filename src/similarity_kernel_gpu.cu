@@ -25,7 +25,6 @@ public:
         auto input = context->input(0);
         auto templates = context->input(1);
         auto weights = context->input(2);
-        const T block_out_of_bounds_value{0};
 
         auto input_t = input.tensor<T, 4>();
         auto templates_t = templates.tensor<T, 4>();
@@ -81,7 +80,7 @@ public:
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        col_buff, true, block_out_of_bounds_value);
+                        col_buff, true, out_of_bounds_value_);
             } else {  // special case for 1x1 convolution
                 col_buff = input_t.data() + n * (height_ * width_ * channels_);
             }

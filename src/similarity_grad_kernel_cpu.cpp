@@ -48,9 +48,17 @@ public:
                                                           out_h_ * out_w_);
         TensorShape col_buffer_shape{
                 block_c_ * block_h_ * block_w_ * out_h_ * out_w_ + col_buffer_padding};
+        auto col_buffer_t = col_buffer.tensor<T, 4>();
+        auto row_buffer_t = row_buffer.tensor<T, 4>();
 
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &row_buffer));
+
+        TensorShape interlaced_grad_shape{weights_grad_t.size() + templates_grad_t.size()};
+        Tensor interlaced_grad;
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, interlaced_grad_shape, &interlaced_grad));
+        auto interlaced_grad_t = interlaced_grad.tensor<T, 4>();
+
         using Dtype = T;
 
         const int params_size = num_instances_ * block_w_ * block_h_ * block_c_;
@@ -65,210 +73,77 @@ public:
         inter_params = static_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
         interlace_cpu<Dtype>(M_ * K_,   templates_t.data(), weights_t.data(), inter_params);
 
-
-        // TODO: Continue from here
         typename vec<Dtype>::vec2 * interlaced_params_diff = NULL;
 
-        interlaced_params_diff = static_cast<typename vec<Dtype>::vec2 *>(interlaced_params_diff_->mutable_cpu_data());
+        interlaced_params_diff = static_cast<typename vec<Dtype>::vec2 *>(interlaced_grad_t.data());
         interlace_cpu<Dtype>(params_size,
                              templates_grad_t.data(), weights_grad_t.data(),
                              interlaced_params_diff);
 
         const Dtype* top_diff = NULL;
-        Dtype* col_buff = NULL;
-        if (!is_1x1_ || normalize_patches_) {
-            col_buff = col_buffer_.mutable_cpu_data();
-        }
-        const Dtype* bottom_data = bottom[top_idx]->cpu_data();
-        Dtype* bottom_diff = bottom[top_idx]->mutable_cpu_diff();
-        for (int n = 0; n < num_; ++n) {
+        const Dtype* col_buff = NULL;
+        const Dtype* bottom_data = input_t.data();
+        for (int n = 0; n < batch_; ++n) {
             // Since we saved memory in the forward pass by not storing all col
             // data, we will need to recompute them.
             if (!is_1x1_) {
-                im2col_3d_cpu(
-                        bottom_data + bottom[top_idx]->offset(n),
+                simnets_tf::im2col_3d_cpu<T>(
+                        bottom_data + n * (height_ * width_ * channels_),
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        col_buff, true, block_out_of_bounds_value_);
+                        col_buffer_t.data(), false, out_of_bounds_value_);
+                col_buff = col_buffer_t.data();
             } else {
-                if (!normalize_patches_) {
-                    col_buff = bottom[top_idx]->mutable_cpu_data() + bottom[top_idx]->offset(n);
-                } else {
-                    caffe_copy(N_ * K_, bottom[top_idx]->mutable_cpu_data() + bottom[top_idx]->offset(n), col_buff);
-                }
+                    col_buff = bottom_data + n * (height_ * width_ * channels_);
             }
-            Dtype* row_buff = row_buffer_.mutable_cpu_data();
+            Dtype* row_buff = row_buffer_t.data();
+            // TODO: Transpose using eigen
             caffe_cpu_transpose(K_, N_,
                                 col_buff,
                                 row_buff);
-            if (normalize_patches_) {
-                caffe_copy(K_ * N_,
-                           row_buff,
-                           row_buffer_.mutable_cpu_diff());
-                caffe_cpu_normalize_patches_rows_forward(K_, N_, normalization_fudge_factor_,
-                                                         row_buff, normalize_variance_);
-                caffe_cpu_transpose(N_, K_,
-                                    row_buff,
-                                    col_buff);
-            }
-            top_diff = top[top_idx]->cpu_diff() + top[0]->offset(n);
+            top_diff = output_grad_t.data() + n * (out_c_ * out_h_ * out_w_);
             // gradient w.r.t. weights and templates. Note that we will accumulate diffs.
-            if (this->param_propagate_down_[0] || this->param_propagate_down_[1]) {
-                switch (this->layer_param_.similarity_param().similarity_function()) {
-                    case SimilarityParameter_SimilarityFunction_CONVOLUTION:
+            switch (similarity_function_) {
+                case SIM_FUNC_L1:
+                    ggemm_readc_cpu
+                            <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, uint8_t,
+                                    sim_l1_backward_weights<Dtype>, add_vec2<Dtype>, true,
+                                    no_op<typename vec<Dtype>::vec2>, false>
+                            (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0), 0);
+                    break;
+                case SIM_FUNC_L2:
+                    if (normalization_term_) {
+                        if (ignore_nan_input_) {
+                            ggemm_readc_cpu
+                                    <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
+                                            sim_l2_normalized_backward_weights<Dtype, false, true>, add_vec2<Dtype>, true,
+                                            no_op<typename vec<Dtype>::vec2>, false>
+                                    (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
+                                     normalization_term_fudge_);
+                        } else {
+                            ggemm_readc_cpu
+                                    <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
+                                            sim_l2_normalized_backward_weights<Dtype, false, false>, add_vec2<Dtype>, true,
+                                            no_op<typename vec<Dtype>::vec2>, false>
+                                    (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
+                                     normalization_term_fudge_);
+                        }
+                    } else {
                         ggemm_readc_cpu
                                 <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, uint8_t,
-                                        sim_linear_backward_weights<Dtype>, add_vec2<Dtype>, true,
+                                        sim_l2_backward_weights<Dtype, false>, add_vec2<Dtype>, true,
                                         no_op<typename vec<Dtype>::vec2>, false>
                                 (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0), 0);
-                        break;
-                    case SimilarityParameter_SimilarityFunction_L1:
-                        ggemm_readc_cpu
-                                <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, uint8_t,
-                                        sim_l1_backward_weights<Dtype>, add_vec2<Dtype>, true,
-                                        no_op<typename vec<Dtype>::vec2>, false>
-                                (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0), 0);
-                        break;
-                    case SimilarityParameter_SimilarityFunction_L2:
-                        if (normalization_term_) {
-                            if (use_log_space_weight_param_) {
-                                if (ignore_nan_input_) {
-                                    ggemm_readc_cpu
-                                            <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
-                                                    sim_l2_normalized_backward_weights<Dtype, true, true>, add_vec2<Dtype>, true,
-                                                    no_op<typename vec<Dtype>::vec2>, false>
-                                            (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
-                                             normalization_term_fudge_);
-                                } else {
-                                    ggemm_readc_cpu
-                                            <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
-                                                    sim_l2_normalized_backward_weights<Dtype, true, false>, add_vec2<Dtype>, true,
-                                                    no_op<typename vec<Dtype>::vec2>, false>
-                                            (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
-                                             normalization_term_fudge_);
-                                }
-                            } else {
-                                if (ignore_nan_input_) {
-                                    ggemm_readc_cpu
-                                            <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
-                                                    sim_l2_normalized_backward_weights<Dtype, false, true>, add_vec2<Dtype>, true,
-                                                    no_op<typename vec<Dtype>::vec2>, false>
-                                            (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
-                                             normalization_term_fudge_);
-                                } else {
-                                    ggemm_readc_cpu
-                                            <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, Dtype,
-                                                    sim_l2_normalized_backward_weights<Dtype, false, false>, add_vec2<Dtype>, true,
-                                                    no_op<typename vec<Dtype>::vec2>, false>
-                                            (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0),
-                                             normalization_term_fudge_);
-                                }
-                            }
-                        } else {
-                            if (use_log_space_weight_param_) {
-                                ggemm_readc_cpu
-                                        <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, uint8_t,
-                                                sim_l2_backward_weights<Dtype, true>, add_vec2<Dtype>, true,
-                                                no_op<typename vec<Dtype>::vec2>, false>
-                                        (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0), 0);
-                            } else {
-                                ggemm_readc_cpu
-                                        <false, false, Dtype, Dtype, typename vec<Dtype>::vec2, uint8_t,
-                                                sim_l2_backward_weights<Dtype, false>, add_vec2<Dtype>, true,
-                                                no_op<typename vec<Dtype>::vec2>, false>
-                                        (M_, K_, N_, top_diff, row_buff, inter_params, interlaced_params_diff, make_vec2<Dtype>(0,0), 0);
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            // gradient w.r.t. bottom data, if necessary.
-            if (propagate_down[top_idx]) {
-                Dtype* col_diff_buff = NULL;
-                if (is_1x1_) {
-                    col_diff_buff = bottom[top_idx]->mutable_cpu_diff() + bottom[top_idx]->offset(n);
-                } else {
-                    col_diff_buff = col_buffer_.mutable_cpu_diff();
-                }
-
-                switch (this->layer_param_.similarity_param().similarity_function()) {
-                    case SimilarityParameter_SimilarityFunction_CONVOLUTION:
-                        ggemm_readc_cpu
-                                <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                        sim_linear_backward_bottom<Dtype>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
-                        break;
-                    case SimilarityParameter_SimilarityFunction_L1:
-                        ggemm_readc_cpu
-                                <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                        sim_l1_backward_bottom<Dtype>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
-                        break;
-                    case SimilarityParameter_SimilarityFunction_L2:
-                        if (normalization_term_) {
-                            if (use_log_space_weight_param_) {
-                                if (ignore_nan_input_) {
-                                    ggemm_readc_cpu
-                                            <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                    sim_l2_normalized_backward_bottom<Dtype, true, true>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                            (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
-                                } else {
-                                    ggemm_readc_cpu
-                                            <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                    sim_l2_normalized_backward_bottom<Dtype, true, false>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                            (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
-                                }
-                            } else {
-                                if (ignore_nan_input_) {
-                                    ggemm_readc_cpu
-                                            <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                    sim_l2_normalized_backward_bottom<Dtype, false, true>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                            (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
-                                } else {
-                                    ggemm_readc_cpu
-                                            <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
-                                                    sim_l2_normalized_backward_bottom<Dtype, false, false>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                            (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
-                                }
-                            }
-                        } else {
-                            if (use_log_space_weight_param_) {
-                                ggemm_readc_cpu
-                                        <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                                sim_l2_backward_bottom<Dtype, true>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                        (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
-                            } else {
-                                ggemm_readc_cpu
-                                        <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                                sim_l2_backward_bottom<Dtype, false>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
-                                        (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
-                            }
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
-                // col2im back to the data
-                if (!is_1x1_) {
-                    col2im_3d_cpu(
-                            col_diff_buff,
-                            channels_, height_, width_,
-                            block_c_, block_h_, block_w_,
-                            pad_c_, pad_h_, pad_w_,
-                            stride_c_, stride_h_, stride_w_,
-                            bottom_diff + bottom[top_idx]->offset(n));
-                }
+                    }
+                    break;
+                default:
+                    break;
             }
         }
-        const int params_size = M_ * K_;
         deinterlace_cpu<Dtype>(params_size,
-                               interlaced_params_diff, templates_diff, weights_diff);
+                               interlaced_params_diff, templates_grad_t.data(), weights_grad_t.data());
 
     }
 };

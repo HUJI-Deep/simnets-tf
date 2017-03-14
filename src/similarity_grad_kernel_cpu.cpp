@@ -70,12 +70,12 @@ public:
         auto interlaced_t = interlaced.tensor<T, 1>();
 
         typename vec<Dtype>::vec2 * inter_params = NULL;
-        inter_params = static_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
+        inter_params = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
         interlace_cpu<Dtype>(M_ * K_,   templates_t.data(), weights_t.data(), inter_params);
 
         typename vec<Dtype>::vec2 * interlaced_params_diff = NULL;
 
-        interlaced_params_diff = static_cast<typename vec<Dtype>::vec2 *>(interlaced_grad_t.data());
+        interlaced_params_diff = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_grad_t.data());
         interlace_cpu<Dtype>(params_size,
                              templates_grad_t.data(), weights_grad_t.data(),
                              interlaced_params_diff);
@@ -99,10 +99,10 @@ public:
                     col_buff = bottom_data + n * (height_ * width_ * channels_);
             }
             Dtype* row_buff = row_buffer_t.data();
-            // TODO: Transpose using eigen
-            caffe_cpu_transpose(K_, N_,
-                                col_buff,
-                                row_buff);
+            typename TTypes<T,2>::ConstTensor colMap(col_buff, K_, N_);
+            typename TTypes<T,2>::Tensor rowMap(row_buff, N_, K_);
+            Eigen::array<int, 2> transposeIdx({1, 0});
+            rowMap.device(context->eigen_cpu_device()) = colMap.shuffle(transposeIdx);
             top_diff = output_grad_t.data() + n * (out_c_ * out_h_ * out_w_);
             // gradient w.r.t. weights and templates. Note that we will accumulate diffs.
             switch (similarity_function_) {
@@ -147,3 +147,14 @@ public:
 
     }
 };
+
+REGISTER_KERNEL_BUILDER(
+        Name("SimilarityParametersGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<double>("T"),
+        SimilarityParametersGradKernelCPU<double>);
+REGISTER_KERNEL_BUILDER(
+        Name("SimilarityParametersGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<float>("T"),
+        SimilarityParametersGradKernelCPU<float>);

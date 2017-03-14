@@ -30,3 +30,37 @@ REGISTER_OP("Similarity")
 // padding: The type of padding algorithm to use.
 // output: The sum pooled output tensor.
 // )doc");
+
+REGISTER_OP("SimilarityInputGrad")
+        .Input("input: T")
+        .Input("templates: T")
+        .Input("weights: T")
+        .Input("input_grad: T")
+        .Output("output: T")
+        .Attr("T: {float32, float64}")
+        .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
+        .Attr("ksize: list(int) = [1,2,2,1]")
+        .Attr("strides: list(int) = [1,2,2,1]")
+        .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
+        .Attr("normalization_term: bool = false")
+        .Attr("normalization_term_fudge: float = 0.001")
+        .Attr("ignore_nan_input: bool = false")
+        .Attr("out_of_bounds_value: float = 0.0");
+
+REGISTER_OP("SimilarityParamsetersGrad")
+        .Input("input: T")
+        .Input("templates: T")
+        .Input("weights: T")
+        .Input("output_grad: T")
+        .Output("weights_grad: T")
+        .Output("templates_grad: T")
+        .Attr("T: {float32, float64}")
+        .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
+        .Attr("ksize: list(int) = [1,2,2,1]")
+        .Attr("strides: list(int) = [1,2,2,1]")
+        .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
+        .Attr("normalization_term: bool = false")
+        .Attr("normalization_term_fudge: float = 0.001")
+        .Attr("ignore_nan_input: bool = false")
+        .Attr("out_of_bounds_value: float = 0.0");
+

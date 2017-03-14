@@ -98,6 +98,9 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
 
     auto input_t = input.tensor<T, 4>();
     auto templates_t = templates.tensor<T, 4>();
+    auto weights_t = weights.tensor<T, 4>();
+
+    out_of_bounds_value_ = 0;
 
     num_instances_ = templates_t.dimension(0);
 
@@ -116,8 +119,8 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     stride_c_ = channels_;
 
     GetWindowedOutputSize(height_, block_h_, stride_h_, this->padding_, &out_h_, &pad_h_);
-    GetWindowedOutputSize(width_, block_w_, stride_w_, this->padding_, &out_w_, &pad_w_);
-    //GetWindowedOutputSize(channels, block_c, stride_c, this->padding_, &out_c, &pad_c);
+    GetWindowedOutputSize(width_,  block_w_, stride_w_, this->padding_, &out_w_, &pad_w_);
+
     out_c_ = num_instances_;
     pad_c_ = 0;
     is_1x1_ = block_c_ == channels_ && block_w_ == 1 && block_h_ == 1
@@ -127,6 +130,11 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     M_ = num_instances_;
     K_ = block_c_ * block_h_ * block_w_;
     N_ = out_h_ * out_w_;
+
+    OP_REQUIRES(context, channels_ == templates_t.dimension(1),
+                tensorflow::errors::InvalidArgument("Number of channels mismatch between input and template"));
+    OP_REQUIRES(context, channels_ == weights_t.dimension(1),
+                tensorflow::errors::InvalidArgument("Number of channels mismatch between input and weights"));
 }
 
 #endif //SIMNETS_TF_SIMILARITY_LAYER_COMMON_HPP

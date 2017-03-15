@@ -46,10 +46,9 @@ else()
                                   src/im2col.cpp src/similarity_ref_op.cpp src/similarity_grad_kernel_cpu.cpp)
 endif()
 
-#add_custom_target(sum_pool_test
-#        COMMAND ${PYTHON_EXECUTABLE} sum_pool_test.py $<TARGET_FILE:sum_pool_op>
-#        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
+add_custom_target(test_simnet_ops
+        COMMAND cd $<TARGET_FILE_DIR:simnet_ops>
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/test.py)
 
 set_target_properties(simnet_ops PROPERTIES PREFIX "")
 target_include_directories(simnet_ops PUBLIC ${TF_INCLUDES})
-

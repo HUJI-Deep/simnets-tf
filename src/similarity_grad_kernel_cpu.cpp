@@ -99,8 +99,8 @@ public:
                     col_buff = bottom_data + n * (height_ * width_ * channels_);
             }
             Dtype* row_buff = row_buffer_t.data();
-            typename TTypes<T,2>::ConstTensor colMap(col_buff, K_, N_);
-            typename TTypes<T,2>::Tensor rowMap(row_buff, N_, K_);
+            typename TTypes<T,2>::ConstTensor colMap(col_buff, N_, K_);
+            typename TTypes<T,2>::Tensor rowMap(row_buff, K_, N_);
             Eigen::array<int, 2> transposeIdx({1, 0});
             rowMap.device(context->eigen_cpu_device()) = colMap.shuffle(transposeIdx);
             top_diff = output_grad_t.data() + n * (out_c_ * out_h_ * out_w_);
@@ -148,6 +148,111 @@ public:
     }
 };
 
+template<typename T>
+class SimilarityInputGradKernelCPU : public SimilarityKernelCommon {
+public:
+
+    using Base = SimilarityKernelCommon;
+    using Dtype = T;
+
+    SimilarityInputGradKernelCPU(OpKernelConstruction *context) : Base(context) {}
+
+    void Compute(OpKernelContext *context) override {
+        this->CalculateDimensions<T>(context);
+        auto input = context->input(0);
+        auto templates = context->input(1);
+        auto weights = context->input(2);
+        auto output_grad = context->input(3);
+
+        auto templates_t = templates.tensor<T, 4>();
+        auto weights_t = weights.tensor<T, 4>();
+        auto output_grad_t = output_grad.tensor<T, 4>();
+
+        Tensor *input_grad = NULL;
+
+        OP_REQUIRES_OK(context, context->allocate_output(0, input.shape(),
+                                                         &input_grad));
+
+        auto input_grad_t = input_grad->tensor<T, 4>();
+
+        Tensor col_buffer;
+        int col_buffer_padding = ggemm_padded_output_size(block_c_ * block_h_ * block_w_,
+                                                          out_h_ * out_w_);
+        TensorShape col_buffer_shape{
+                block_c_ * block_h_ * block_w_ * out_h_ * out_w_ + col_buffer_padding};
+        auto col_buffer_t = col_buffer.tensor<T, 4>();
+
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
+
+        using Dtype = T;
+
+        const int params_size = num_instances_ * block_w_ * block_h_ * block_c_;
+        const int padding_size = ggemm_padded_output_size(num_instances_, block_c_ * block_h_ * block_w_);
+
+        Tensor interlaced;
+        TensorShape interlaced_shape{2 * (params_size + padding_size)};
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, interlaced_shape, &interlaced));
+        auto interlaced_t = interlaced.tensor<T, 1>();
+
+        typename vec<Dtype>::vec2 * inter_params = NULL;
+        inter_params = reinterpret_cast<typename vec<Dtype>::vec2 *>(interlaced_t.data());
+        interlace_cpu<Dtype>(M_ * K_,   templates_t.data(), weights_t.data(), inter_params);
+
+        const Dtype* col_buff = NULL;
+        for (int n = 0; n < batch_; ++n) {
+            const Dtype* top_diff = output_grad_t.data() + n * (out_h_ * out_w_ * out_c_);
+            Dtype* col_diff_buff = NULL;
+            if (is_1x1_) {
+                col_diff_buff = input_grad_t.data() + n * (width_ * height_ * channels_);
+            } else {
+                col_diff_buff = col_buffer_t.data();
+            }
+
+            switch (similarity_function_) {
+                case SIM_FUNC_L1:
+                    ggemm_readc_cpu
+                            <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
+                                    sim_l1_backward_bottom<Dtype>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
+                            (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
+                    break;
+                case SIM_FUNC_L2:
+                    if (normalization_term_) {
+                        if (ignore_nan_input_) {
+                            ggemm_readc_cpu
+                                    <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
+                                            sim_l2_normalized_backward_bottom<Dtype, false, true>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
+                                    (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
+                        } else {
+                            ggemm_readc_cpu
+                                    <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, Dtype,
+                                            sim_l2_normalized_backward_bottom<Dtype, false, false>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
+                                    (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, normalization_term_fudge_);
+                        }
+                    } else {
+                        ggemm_readc_cpu
+                                <true, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
+                                        sim_l2_backward_bottom<Dtype, false>, ggemm_add<Dtype>, false, no_op<Dtype>, false>
+                                (K_, N_, M_, inter_params, top_diff, col_buff, col_diff_buff, 0, 0);
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            // col2im back to the data
+            if (!is_1x1_) {
+                simnets_tf::col2im_3d_cpu(
+                        col_diff_buff,
+                        channels_, height_, width_,
+                        block_c_, block_h_, block_w_,
+                        pad_c_, pad_h_, pad_w_,
+                        stride_c_, stride_h_, stride_w_,
+                        output_grad_t.data() + n * (out_c_ * out_h_ * out_w_), false);
+            }
+        }
+    }
+};
+
 REGISTER_KERNEL_BUILDER(
         Name("SimilarityParametersGrad")
                 .Device(DEVICE_CPU)
@@ -158,3 +263,14 @@ REGISTER_KERNEL_BUILDER(
                 .Device(DEVICE_CPU)
                 .TypeConstraint<float>("T"),
         SimilarityParametersGradKernelCPU<float>);
+
+REGISTER_KERNEL_BUILDER(
+        Name("SimilarityInputGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<double>("T"),
+        SimilarityInputGradKernelCPU<double>);
+REGISTER_KERNEL_BUILDER(
+        Name("SimilarityInputGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<float>("T"),
+        SimilarityInputGradKernelCPU<float>);

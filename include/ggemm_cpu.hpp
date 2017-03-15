@@ -682,7 +682,7 @@ void ggemm_readc_cpu(const int M, const int N, const int K,
 
 #define ISNAN(x) (x != x)
 
-template <typename T> int sign(T val) {
+template <typename T> __forceinline__ __device__ __host__ int sign(T val) {
     return (T(0) < val) - (val < T(0));
 }
 

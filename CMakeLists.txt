@@ -37,7 +37,8 @@ if (SIMNETS_WITH_CUDA)
             src/im2col.cpp
             src/similarity_kernel_gpu.cu
             src/im2col.cu src/similarity_ref_op.cpp
-            src/similarity_grad_kernel_cpu.cpp)
+            src/similarity_grad_kernel_cpu.cpp
+            src/similarity_grad_kernel_gpu.cu)
 else()
     add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
                                   include/ggemm_cpu.hpp

@@ -100,8 +100,6 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     auto templates_t = templates.tensor<T, 4>();
     auto weights_t = weights.tensor<T, 4>();
 
-    out_of_bounds_value_ = 0;
-
     num_instances_ = templates_t.dimension(0);
 
     batch_ = input_t.dimension(BATCH_DIM);

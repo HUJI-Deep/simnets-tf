@@ -3,7 +3,58 @@
 #include "tensorflow/core/framework/common_shape_fns.h"
 
 using namespace tensorflow;
-namespace si = tensorflow::shape_inference;
+
+Status SimilarityShape(shape_inference::InferenceContext* c) {
+    using namespace tensorflow::shape_inference;
+    ShapeHandle input_shape;
+    TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 4, &input_shape));
+    ShapeHandle template_shape;
+    TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 4, &template_shape));
+
+    std::vector<int32> strides;
+    TF_RETURN_IF_ERROR(c->GetAttr("strides", &strides));
+
+    if (strides.size() != 4) {
+        return errors::InvalidArgument(
+                "Similarity requires the stride attribute to contain 4 values, but got: ",
+                strides.size());
+    }
+
+    int32 stride_rows = strides[1];
+    int32 stride_cols = strides[2];
+
+    DimensionHandle batch_size_dim = c->Dim(input_shape, 0);
+    DimensionHandle in_rows_dim = c->Dim(input_shape, 2);
+    DimensionHandle in_cols_dim = c->Dim(input_shape, 3);
+    DimensionHandle filter_rows_dim = c->Dim(template_shape, 2);
+    DimensionHandle filter_cols_dim = c->Dim(template_shape, 3);
+    DimensionHandle output_depth_dim = c->Dim(template_shape, 1);
+
+    DimensionHandle unused;
+    TF_RETURN_IF_ERROR(
+            c->Merge(c->Dim(input_shape, 1), c->Dim(template_shape, 1), &unused));
+
+    Padding padding;
+    TF_RETURN_IF_ERROR(c->GetAttr("padding", &padding));
+
+    DimensionHandle output_rows, output_cols;
+    TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
+            c, in_rows_dim, filter_rows_dim, stride_rows, padding, &output_rows));
+    TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
+            c, in_cols_dim, filter_cols_dim, stride_cols, padding, &output_cols));
+
+    ShapeHandle output_shape;
+    output_shape = c->MakeShape({batch_size_dim, output_depth_dim, output_rows, output_cols});
+
+    c->set_output(0, output_shape);
+    return Status::OK();
+}
+
+Status SimilarityParametersGradShape(shape_inference::InferenceContext* c) {
+    c->set_output(0, c->input(1));
+    c->set_output(1, c->input(2));
+    return Status::OK();
+}
 
 REGISTER_OP("Similarity")
         .Input("input: T")
@@ -18,8 +69,8 @@ REGISTER_OP("Similarity")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")
-        .Attr("out_of_bounds_value: float = 0.0");
-//      .SetShapeFn(si::Conv2DShape);
+        .Attr("out_of_bounds_value: float = 0.0")
+        .SetShapeFn(SimilarityShape);
 //      .Doc(R"doc(
 // Performs sum pooling on the input.
 // Each entry in `output` is the sum of the corresponding size `ksize`
@@ -45,7 +96,8 @@ REGISTER_OP("SimilarityInputGrad")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")
-        .Attr("out_of_bounds_value: float = 0.0");
+        .Attr("out_of_bounds_value: float = 0.0")
+        .SetShapeFn(shape_inference::UnchangedShape);
 
 REGISTER_OP("SimilarityParametersGrad")
         .Input("input: T")
@@ -62,5 +114,6 @@ REGISTER_OP("SimilarityParametersGrad")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")
-        .Attr("out_of_bounds_value: float = 0.0");
+        .Attr("out_of_bounds_value: float = 0.0")
+        .SetShapeFn(SimilarityParametersGradShape);
 

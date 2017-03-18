@@ -4,6 +4,24 @@
 
 using namespace tensorflow;
 
+Status GetSimilarityOutputSizeFromDims(
+        shape_inference::InferenceContext* c,
+        shape_inference::DimensionHandle input_size,
+        shape_inference::DimensionOrConstant filter_size, int64 stride,
+        int padding, shape_inference::DimensionHandle* output_size) {
+    if (stride <= 0) {
+        return errors::InvalidArgument("Stride must be > 0, but got ", stride);
+    }
+
+    // See also the parallel implementation in GetWindowedOutputSizeVerbose.
+    TF_RETURN_IF_ERROR(c->Add(input_size, 2 * padding, output_size));
+    TF_RETURN_IF_ERROR(c->Subtract(*output_size, filter_size, output_size));
+    TF_RETURN_IF_ERROR(c->Divide(*output_size, stride, false, output_size));
+    TF_RETURN_IF_ERROR(c->Add(*output_size, 1, output_size));
+
+    return Status::OK();
+}
+
 Status SimilarityShape(shape_inference::InferenceContext* c) {
     using namespace tensorflow::shape_inference;
     ShapeHandle input_shape;
@@ -13,6 +31,8 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
 
     std::vector<int32> strides;
     TF_RETURN_IF_ERROR(c->GetAttr("strides", &strides));
+    std::vector<int32> ksize;
+    TF_RETURN_IF_ERROR(c->GetAttr("ksize", &ksize));
 
     if (strides.size() != 4) {
         return errors::InvalidArgument(
@@ -37,11 +57,20 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
     Padding padding;
     TF_RETURN_IF_ERROR(c->GetAttr("padding", &padding));
 
+    int pad_h, pad_w;
+    if (padding == tensorflow::VALID)
+    {
+        pad_h = pad_w = 0;
+    } else {
+        pad_h = ksize[1] / 2;
+        pad_w = ksize[2] / 2;
+    }
+
     DimensionHandle output_rows, output_cols;
-    TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-            c, in_rows_dim, filter_rows_dim, stride_rows, padding, &output_rows));
-    TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-            c, in_cols_dim, filter_cols_dim, stride_cols, padding, &output_cols));
+    TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
+            c, in_rows_dim, filter_rows_dim, stride_rows, pad_h, &output_rows));
+    TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
+            c, in_cols_dim, filter_cols_dim, stride_cols, pad_w, &output_cols));
 
     ShapeHandle output_shape;
     output_shape = c->MakeShape({batch_size_dim, output_depth_dim, output_rows, output_cols});

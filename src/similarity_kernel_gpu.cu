@@ -80,7 +80,7 @@ public:
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        col_buff, false, out_of_bounds_value_);
+                        col_buff, true, out_of_bounds_value_);
             } else {  // special case for 1x1 convolution
                 col_buff = input_t.data() + n * (height_ * width_ * channels_);
             }

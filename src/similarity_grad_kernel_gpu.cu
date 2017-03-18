@@ -91,7 +91,7 @@ public:
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        col_buffer_t.data(), false, out_of_bounds_value_);
+                        col_buffer_t.data(), true, out_of_bounds_value_);
                 col_buff = col_buffer_t.data();
             } else {
                 col_buff = bottom_data + n * (height_ * width_ * channels_);
@@ -208,7 +208,7 @@ public:
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        col_buffer_t.data(), false, out_of_bounds_value_);
+                        col_buffer_t.data(), true, out_of_bounds_value_);
                 col_buff = col_buffer_t.data();
             } else {
                 col_buff = bottom_data + n * (height_ * width_ * channels_);
@@ -262,7 +262,7 @@ public:
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        input_grad_t.data() + n * (channels_ * height_ * width_), false);
+                        input_grad_t.data() + n * (channels_ * height_ * width_), true);
             }
         }
     }

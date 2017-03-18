@@ -7,6 +7,7 @@
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
+#include "im2col.hpp"
 
 
 enum SimilarityFunction {
@@ -116,8 +117,19 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     stride_w_ = this->stride_[2];
     stride_c_ = channels_;
 
-    GetWindowedOutputSize(height_, block_h_, stride_h_, this->padding_, &out_h_, &pad_h_);
-    GetWindowedOutputSize(width_,  block_w_, stride_w_, this->padding_, &out_w_, &pad_w_);
+    if (padding_ == tensorflow::VALID)
+    {
+        pad_h_ = pad_w_ = 0;
+    } else {
+        pad_h_ = ksize_[1] / 2;
+        pad_w_ = ksize_[2] / 2;
+    }
+
+    out_h_ = simnets_tf::dimension_out_size(height_, pad_h_, ksize_[1], stride_[1], true);
+    out_w_ = simnets_tf::dimension_out_size(width_, pad_w_, ksize_[2], stride_[2], true);
+
+    //GetWindowedOutputSize(height_, block_h_, stride_h_, this->padding_, &out_h_, &pad_h_);
+    //GetWindowedOutputSize(width_,  block_w_, stride_w_, this->padding_, &out_w_, &pad_w_);
 
     out_c_ = num_instances_;
     pad_c_ = 0;

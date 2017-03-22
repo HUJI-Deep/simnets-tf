@@ -748,6 +748,93 @@ template <typename T> __forceinline__ __device__ __host__ int sign(T val) {
         }
     }
 
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_forward_exp(Dtype offset, Dtype data, Dtype max, typename vec<Dtype>::vec2 extra) {
+#ifdef __CUDA_ARCH__
+    return EXP_CUDA(extra.x * (data + offset - max) + extra.y);
+  //return __fdividef(exp(data + offset - max), Dtype(K));
+#else
+    return std::exp(extra.x * (data + offset - max) + extra.y);
+#endif
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_forward_out(Dtype in, typename vec<Dtype>::vec2 extra) {
+#ifdef __CUDA_ARCH__
+    return LOG_CUDA(in) / extra.x;
+#else
+    return std::log(in) / extra.x;
+#endif
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_bottom_finite(Dtype offset, typename vec<Dtype>::vec2 top_data, Dtype data,
+                                 typename vec<Dtype>::vec2 extra) {
+#ifdef __CUDA_ARCH__
+    return top_data.y * EXP_CUDA(extra.x * (data + offset - top_data.x) + extra.y);
+  //return __fdividef(exp(data + offset - max), Dtype(K));
+#else
+    return top_data.y * std::exp(extra.x * (data + offset - top_data.x) + extra.y);
+#endif
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_bottom_infinite(Dtype offset, typename vec<Dtype>::vec2 top_data, Dtype data, uint8_t nothing) {
+    return top_data.y * ((data + offset) == top_data.x);
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_offsets_finite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
+                                  typename vec<Dtype>::vec2 extra) {
+    return mex_backward_bottom_finite(offset, top_data, data, extra);
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_offsets_infinite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset, uint8_t nothing) {
+    return mex_backward_bottom_infinite(offset, top_data, data, nothing);
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_normalized_offsets_finite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
+                                             typename vec<Dtype>::vec2 extra) {
+    const Dtype res = mex_backward_offsets_finite(top_data, data, offset, extra);
+#ifdef __CUDA_ARCH__
+    return res - top_data.y * EXP_CUDA(extra.x * offset + extra.y);
+#else
+    return res - top_data.y * std::exp(extra.x * offset + extra.y);
+#endif
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_normalized_offsets_infinite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
+                                               uint8_t nothing) {
+    const Dtype res = mex_backward_offsets_infinite(top_data, data, offset, nothing);
+    return res - top_data.y * (offset == Dtype(0));
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_epsilon(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
+                           Dtype epsilon) {
+    const Dtype x = data + offset;
+#ifdef __CUDA_ARCH__
+    return top_data.y * (x * EXP_CUDA(epsilon * (x - top_data.x)) - top_data.x);
+#else
+    return top_data.y * (x * std::exp(epsilon * (x - top_data.x)) - top_data.x);
+#endif
+}
+
+template<typename Dtype> __device__ __host__ __forceinline__
+Dtype mex_backward_epsilon_with_normalized_offsets(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
+                                                   Dtype epsilon) {
+    const Dtype res = mex_backward_epsilon(top_data, data, offset, epsilon);
+#ifdef __CUDA_ARCH__
+    return res - top_data.y * offset * EXP_CUDA(epsilon * offset);
+#else
+    return res - top_data.y * offset * std::exp(epsilon * offset);
+#endif
+}
+
+
 // Backward weights
     template<typename Dtype> __forceinline__ __device__ __host__
     typename vec<Dtype>::vec2 sim_linear_backward_weights(Dtype err, Dtype x, typename vec<Dtype>::vec2 p, uint8_t nothing) {

@@ -48,7 +48,7 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
     DimensionHandle in_cols_dim = c->Dim(input_shape, 3);
     DimensionHandle filter_rows_dim = c->Dim(template_shape, 2);
     DimensionHandle filter_cols_dim = c->Dim(template_shape, 3);
-    DimensionHandle output_depth_dim = c->Dim(template_shape, 1);
+    DimensionHandle output_depth_dim = c->Dim(template_shape, 0);
 
     DimensionHandle unused;
     TF_RETURN_IF_ERROR(

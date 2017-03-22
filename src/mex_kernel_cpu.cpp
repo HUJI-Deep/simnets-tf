@@ -84,6 +84,17 @@ void mex_forward_cpu(const int M, const int N, const int K, const bool softmax_m
     }
 }
 
+namespace
+{
+    template <typename T, typename D>
+    void copy_with_eigen(T* dest, const T* source, size_t sz, const D& eigen_device)
+    {
+        typename TTypes<T,1>::ConstTensor src(source, sz);
+        typename TTypes<T,1>::Tensor dst(dest, sz);
+        dst.device(eigen_device) = src;
+    }
+}
+
 template<typename T>
 class MEXKernelCPU : public MEXKernelCommon {
 public:
@@ -98,7 +109,6 @@ public:
 
         auto input = context->input(0);
         auto offsets_unpadded = context->input(1);
-
         auto input_t = input.tensor<T, 4>();
         auto offsets_unpadded_t = offsets_unpadded.tensor<T, 5>();
 
@@ -106,6 +116,9 @@ public:
         TensorShape offsets_padded_shape{{offsets_unpadded_t.size() + ggemm_padded_output_size(M_, K_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, offsets_padded_shape, &offsets_padded);
         auto offsets_padded_t = offsets_padded.tensor<T, 1>();
+        copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(),
+                        offsets_unpadded_t.size(), context->eigen_cpu_device());
+
 
         Tensor *output = NULL;
 

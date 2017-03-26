@@ -39,6 +39,7 @@ if (SIMNETS_WITH_CUDA)
             src/im2col.cu src/similarity_ref_op.cpp
             src/similarity_grad_kernel_cpu.cpp
             src/similarity_grad_kernel_gpu.cu
+            src/mex_op.cpp
             src/mex_kernel_common.cpp
             src/mex_kernel_cpu.cpp)
 else()
@@ -48,6 +49,7 @@ else()
                                   include/im2col.hpp
                                   src/im2col.cpp src/similarity_ref_op.cpp
                                   src/similarity_grad_kernel_cpu.cpp
+                                  src/mex_op.cpp
                                   src/mex_kernel_common.cpp
                                   src/mex_kernel_cpu.cpp)
 endif()

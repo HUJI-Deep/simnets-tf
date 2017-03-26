@@ -141,7 +141,6 @@ public:
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_out_shape, &split_patches_out_tensor);
         auto split_patches_out_t = split_patches_out_tensor.tensor<T, 1>();
 
-
         // -------------------------------------------------------------------------------
 
         const Dtype *col_buff = NULL;
@@ -155,11 +154,11 @@ public:
         const Dtype *offsets = offsets_padded_t.data();
 
         auto input_at_batch = [&](int n) {
-            return input_t.data() + channels_ * height_ * width_;
+            return input_t.data() + n * channels_ * height_ * width_;
         };
 
         auto output_at_batch = [&](int n) {
-            return output_t.data() + channels_out_total_ * height_out_ * width_out_;
+            return output_t.data() + n * channels_out_total_ * height_out_ * width_out_;
         };
 
         for (int n = 0; n < batch_; ++n) {

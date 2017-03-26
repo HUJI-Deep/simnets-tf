@@ -26,12 +26,12 @@ MEXKernelCommon::MEXKernelCommon(tensorflow::OpKernelConstruction *context)
     OP_REQUIRES(context, strides.size() == 1  || strides.size() == 3,
                 errors::InvalidArgument("strides should be a list with 1 or 3 elements"));
     if (strides.size() == 1) {
-        stride_h_ = stride_w_ = padding[0];
+        stride_h_ = stride_w_ = strides[0];
         stride_c_ = -1; // to be filled when we have the actual inputs
     } else if (strides.size() == 3) {
-        stride_c_ = padding[0];
-        stride_h_ = padding[1];
-        stride_w_ = padding[2];
+        stride_c_ = strides[0];
+        stride_h_ = strides[1];
+        stride_w_ = strides[2];
     }
 
     OP_REQUIRES_OK(context, context->GetAttr("epsilon", &epsilon_));

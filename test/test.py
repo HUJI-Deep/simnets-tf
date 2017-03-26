@@ -10,6 +10,8 @@ similarity_input_grad = so.similarity_input_grad
 similarity_parameters_grad = so.similarity_parameters_grad
 similarity_ref = so.similarity_ref
 
+mex = so.mex
+
 @tf.RegisterGradient("Similarity")
 def _similarity_grad(op, grad):
     inp = op.inputs[0]
@@ -166,6 +168,21 @@ class SimilarityTests(tf.test.TestCase):
             computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
             self.assertNDArrayNear(numeric, computed, 1e-4)
 
+
+class MexTests(tf.test.TestCase):
+
+    def test_sanity(self):
+        images = np.ones((5,1,30,30), np.float64)
+        images = tf.constant(images)
+
+        offsets = np.zeros((784, 3, 1, 3, 3), np.float64)
+        offsets = tf.constant(offsets)
+
+        with tf.device('/cpu:0'):
+            m = mex(images, offsets, num_instances=3, epsilon=1, padding=[1])
+        with self.test_session():
+            mnp = m.eval()
+        print(mnp.shape)
 
 if __name__ == '__main__':
     tf.test.main()

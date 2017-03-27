@@ -3,6 +3,7 @@ import unittest
 tf.logging.set_verbosity(tf.logging.ERROR)
 import numpy as np
 import itertools
+import ctypes
 
 so = tf.load_op_library('./simnet_ops.so')
 similarity = so.similarity
@@ -10,6 +11,20 @@ similarity_input_grad = so.similarity_input_grad
 similarity_parameters_grad = so.similarity_parameters_grad
 similarity_ref = so.similarity_ref
 
+mex_helper = ctypes.CDLL('./libmex_dims_helper.so')
+
+def mex_dims_helper(input_dim,
+                    padding, strides, num_instances,
+                    blocks_round_down, use_unshared_regions,
+                    blocks, shared_offset_region, unshared_offset_region):
+    def arr(l):
+        print(len(l))
+        return ctypes.c_int(len(l)), (ctypes.c_int * len(l))(*l)
+    return mex_helper.get_mex_offsets_nregions(*arr(input_dim),
+                                               *arr(padding), *arr(strides),
+                                               ctypes.c_int(num_instances), ctypes.c_int(blocks_round_down), ctypes.c_int(use_unshared_regions),
+                                               *arr(blocks), *arr(shared_offset_region),
+                                               *arr(unshared_offset_region))
 mex = so.mex
 
 @tf.RegisterGradient("Similarity")
@@ -169,6 +184,8 @@ class SimilarityTests(tf.test.TestCase):
             self.assertNDArrayNear(numeric, computed, 1e-4)
 
 
+#def get_mex_offsets_dims(input, num_instances, blocks, padding,
+
 class MexTests(tf.test.TestCase):
 
     def test_sanity(self):
@@ -185,4 +202,6 @@ class MexTests(tf.test.TestCase):
         print(mnp.shape)
 
 if __name__ == '__main__':
-    tf.test.main()
+    #tf.test.main()
+    r = mex_dims_helper([1,30,30], [0], [1], 3, True, True, [3], [-1], [-1])
+    print(r)

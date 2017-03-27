@@ -6,11 +6,11 @@
 #include "im2col.hpp"
 
 
-class MEXKernelCommon : public tensorflow::OpKernel {
-public:
-    MEXKernelCommon(tensorflow::OpKernelConstruction* context);
-protected:
-    void CalculateDimensions(tensorflow::OpKernelContext* context);
+struct MexDimensionsData
+{
+    std::vector<int> padding_, strides_, shared_offset_region_, unshared_offset_region_;
+    void CalculateDimensionsWithConext(tensorflow::OpKernelContext* context);
+    void CalculateDimensions();
     int block_c_, block_h_, block_w_;
     int stride_c_, stride_h_, stride_w_;
     int pad_c_, pad_h_, pad_w_;
@@ -42,7 +42,10 @@ protected:
     /// N_ is the spatial dimension of the output, the H x W, which are the last
     /// dimensions of the data and filter matrices.
     int N_;
-
+};
+class MEXKernelCommon : public tensorflow::OpKernel, protected MexDimensionsData {
+public:
+    MEXKernelCommon(tensorflow::OpKernelConstruction* context);
 };
 
 #endif  // SIMNETS_TF_MEX_LAYER_COMMON_HPP

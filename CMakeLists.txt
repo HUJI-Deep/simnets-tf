@@ -29,6 +29,9 @@ include_directories(include
 
 add_compile_options(-DEIGEN_USE_THREADS)
 
+add_library(mex_dims_helper SHARED src/mex_dims_helper.cpp
+                                   src/mex_kernel_common.cpp)
+
 if (SIMNETS_WITH_CUDA)
     cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
             include/ggemm_cpu.hpp

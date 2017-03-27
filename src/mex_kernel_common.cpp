@@ -11,81 +11,48 @@ MEXKernelCommon::MEXKernelCommon(tensorflow::OpKernelConstruction *context)
     OP_REQUIRES_OK(context, context->GetAttr("num_instances", &num_instances_));
     OP_REQUIRES(context, num_instances_ > 0, errors::InvalidArgument("num_instances must be positive"));
 
-    std::vector<int> padding;
-    OP_REQUIRES_OK(context, context->GetAttr("padding", &padding));
-    if (padding.size() == 1) {
-        pad_h_ = pad_w_ = pad_c_ = padding[0];
-    } else {
-        pad_c_ = padding[0];
-        pad_h_ = padding[1];
-        pad_w_ = padding[2];
-    }
+    OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
 
-    std::vector<int> strides;
-    OP_REQUIRES_OK(context, context->GetAttr("strides", &strides));
-    OP_REQUIRES(context, strides.size() == 1  || strides.size() == 3,
+
+    OP_REQUIRES_OK(context, context->GetAttr("strides", &strides_));
+    OP_REQUIRES(context, strides_.size() == 1  || strides_.size() == 3,
                 errors::InvalidArgument("strides should be a list with 1 or 3 elements"));
-    if (strides.size() == 1) {
-        stride_h_ = stride_w_ = strides[0];
-        stride_c_ = -1; // to be filled when we have the actual inputs
-    } else if (strides.size() == 3) {
-        stride_c_ = strides[0];
-        stride_h_ = strides[1];
-        stride_w_ = strides[2];
-    }
 
     OP_REQUIRES_OK(context, context->GetAttr("epsilon", &epsilon_));
     OP_REQUIRES_OK(context, context->GetAttr("blocks_out_of_bounds_value", &blocks_out_of_bounds_value_));
     OP_REQUIRES_OK(context, context->GetAttr("blocks_round_down", &blocks_round_down_));
     OP_REQUIRES_OK(context, context->GetAttr("use_unshared_regions", &use_unshared_regions_));
 
-    std::vector<int> shared_offset_region, unshared_offset_region;
-    OP_REQUIRES_OK(context, context->GetAttr("shared_offset_region", &shared_offset_region));
-    OP_REQUIRES_OK(context, context->GetAttr("unshared_offset_region", &unshared_offset_region));
-    OP_REQUIRES(context, shared_offset_region.size() == 1  || shared_offset_region.size() == 3,
+    OP_REQUIRES_OK(context, context->GetAttr("shared_offset_region", &shared_offset_region_));
+    OP_REQUIRES_OK(context, context->GetAttr("unshared_offset_region", &unshared_offset_region_));
+    OP_REQUIRES(context, shared_offset_region_.size() == 1  || shared_offset_region_.size() == 3,
                 errors::InvalidArgument("shared_offset_region should be a list with 1 or 3 elements"));
-    OP_REQUIRES(context, unshared_offset_region.size() == 1  || unshared_offset_region.size() == 3,
+    OP_REQUIRES(context, unshared_offset_region_.size() == 1  || unshared_offset_region_.size() == 3,
                 errors::InvalidArgument("unshared_offset_region should be a list with 1 or 3 elements"));
 
-
-    if (!use_unshared_regions_) {
-
-        if (shared_offset_region.size() == 3) {
-            shared_offsets_region_c_ = shared_offset_region[0];
-            shared_offsets_region_h_ = shared_offset_region[1];
-            shared_offsets_region_w_ = shared_offset_region[2];
-        } else {
-            shared_offsets_region_w_ = shared_offsets_region_h_ = shared_offset_region[0];
-            shared_offsets_region_c_ = -1;
-        }
-    } else {
-        if (unshared_offset_region.size() == 3) {
-            unshared_offsets_region_c_ = unshared_offset_region[0];
-            unshared_offsets_region_h_ = unshared_offset_region[1];
-            unshared_offsets_region_w_ = unshared_offset_region[2];
-        } else {
-            unshared_offsets_region_w_ = unshared_offsets_region_h_ = unshared_offset_region[0];
-            unshared_offsets_region_c_ = -1;
-        }
-    }
 }
 
 
 // Parameters:
 // Offsets should be [num_regions_, num_instances_, block_c_, block_h_, block_w_]
-void MEXKernelCommon::CalculateDimensions(OpKernelContext *context) {
+void MexDimensionsData::CalculateDimensions() {
 
-    // Configure input size and number of instances
-    batch_ = context->input(0).shape().dim_size(0);
-    channels_ = context->input(0).shape().dim_size(1);
-    height_ = context->input(0).shape().dim_size(2);
-    width_ = context->input(0).shape().dim_size(3);
+    if (padding_.size() == 1) {
+        pad_h_ = pad_w_ = pad_c_ = padding_[0];
+    } else {
+        pad_c_ = padding_[0];
+        pad_h_ = padding_[1];
+        pad_w_ = padding_[2];
+    }
 
-    block_c_ = context->input(1).shape().dim_size(2);
-    block_h_ = context->input(1).shape().dim_size(3);
-    block_w_ = context->input(1).shape().dim_size(4);
-
-    OP_REQUIRES(context, block_c_ <= channels_, errors::InvalidArgument("block depth must be smaller than input depth"));
+    if (strides_.size() == 1) {
+        stride_h_ = stride_w_ = strides_[0];
+        stride_c_ = -1; // to be filled when we have the actual inputs
+    } else if (strides_.size() == 3) {
+        stride_c_ = strides_[0];
+        stride_h_ = strides_[1];
+        stride_w_ = strides_[2];
+    }
 
     if (stride_c_ < 0) {
         stride_c_ = block_c_;
@@ -96,6 +63,16 @@ void MEXKernelCommon::CalculateDimensions(OpKernelContext *context) {
     channels_out_ = simnets_tf::dimension_out_size(channels_, pad_c_, block_c_, stride_c_, blocks_round_down_);
 
     if (!use_unshared_regions_) {
+
+        if (shared_offset_region_.size() == 3) {
+            shared_offsets_region_c_ = shared_offset_region_[0];
+            shared_offsets_region_h_ = shared_offset_region_[1];
+            shared_offsets_region_w_ = shared_offset_region_[2];
+        } else {
+            shared_offsets_region_w_ = shared_offsets_region_h_ = shared_offset_region_[0];
+            shared_offsets_region_c_ = -1;
+        }
+
         if (shared_offsets_region_h_ < 0) {
             shared_offsets_region_h_ = height_out_;
         }
@@ -112,7 +89,17 @@ void MEXKernelCommon::CalculateDimensions(OpKernelContext *context) {
         offsets_h_ = ceiled_div(height_out_, shared_offsets_region_h_);
         offsets_w_ = ceiled_div(width_out_, shared_offsets_region_w_);
         offsets_c_ = ceiled_div(channels_out_, shared_offsets_region_c_);
+
     } else {
+        if (unshared_offset_region_.size() == 3) {
+            unshared_offsets_region_c_ = unshared_offset_region_[0];
+            unshared_offsets_region_h_ = unshared_offset_region_[1];
+            unshared_offsets_region_w_ = unshared_offset_region_[2];
+        } else {
+            unshared_offsets_region_w_ = unshared_offsets_region_h_ = unshared_offset_region_[0];
+            unshared_offsets_region_c_ = -1;
+        }
+
         if (unshared_offsets_region_h_ < 0) {
             unshared_offsets_region_h_ = height_out_;
         }
@@ -154,6 +141,20 @@ void MEXKernelCommon::CalculateDimensions(OpKernelContext *context) {
 }
 
 
+void MexDimensionsData::CalculateDimensionsWithConext(tensorflow::OpKernelContext *context) {
+    // Configure input size and number of instances
+    batch_ = context->input(0).shape().dim_size(0);
+    channels_ = context->input(0).shape().dim_size(1);
+    height_ = context->input(0).shape().dim_size(2);
+    width_ = context->input(0).shape().dim_size(3);
+
+    block_c_ = context->input(1).shape().dim_size(2);
+    block_h_ = context->input(1).shape().dim_size(3);
+    block_w_ = context->input(1).shape().dim_size(4);
+
+    OP_REQUIRES(context, block_c_ <= channels_, errors::InvalidArgument("block depth must be smaller than input depth"));
+    CalculateDimensions();
+}
 
 
 //

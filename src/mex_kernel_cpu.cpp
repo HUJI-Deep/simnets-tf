@@ -105,7 +105,7 @@ public:
     MEXKernelCPU(OpKernelConstruction *context) : Base(context) {}
 
     void Compute(OpKernelContext *context) override {
-        CalculateDimensions(context);
+        CalculateDimensionsWithConext(context);
 
         auto input = context->input(0);
         auto offsets_unpadded = context->input(1);

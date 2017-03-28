@@ -13,12 +13,12 @@ similarity_ref = so.similarity_ref
 
 mex_helper = ctypes.CDLL('./libmex_dims_helper.so')
 
-def mex_dims_helper(input_dim,
-                    padding, strides, num_instances,
-                    blocks_round_down, use_unshared_regions,
-                    blocks, shared_offset_region, unshared_offset_region):
+def mex_dims_helper(input_dim, num_instances,
+                    blocks,
+                    padding=[0], strides=[1],
+                    blocks_round_down=True, use_unshared_regions=True,
+                    shared_offset_region=[-1], unshared_offset_region=[-1]):
     def arr(l):
-        print(len(l))
         return ctypes.c_int(len(l)), (ctypes.c_int * len(l))(*l)
     return mex_helper.get_mex_offsets_nregions(*arr(input_dim),
                                                *arr(padding), *arr(strides),

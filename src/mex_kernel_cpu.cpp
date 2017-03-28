@@ -206,6 +206,132 @@ public:
     }
 };
 
+#define MEX_IDX(w,h,c,k,W,H,C) ((((k)*(C) + (c)) * (H) + (h)) * (W) + (w))
+
+// accumulate through explicit loops over input, output, and filters.
+template <typename Dtype>
+void mex_ref(const Dtype* in, const Dtype epsilon,
+               const int width, const int height, const int channels, const int K,
+               Dtype* out, const bool additive = false, const Dtype mul = 1,
+               const bool ignore_inf_values = false, const bool softmax_mode = false) {
+    for (int w = 0; w < width; ++w) {
+        for (int h = 0; h < height; ++h) {
+            for (int c = 0; c < channels; ++c) {
+                Dtype m = in[MEX_IDX(w,h,c,0,width,height,channels)];
+                for (int k = 0; k < K; ++k) {
+                    const Dtype x = in[MEX_IDX(w,h,c,k,width,height,channels)];
+                    m = epsilon > 0 ? std::max(m, x) : std::min(m, x);
+                }
+                if (std::isfinite(epsilon)) {
+                    int finite_values_count = 0;
+                    Dtype sum = 0;
+                    for (int k = 0; k < K; ++k) {
+                        const Dtype x = in[MEX_IDX(w,h,c,k,width,height,channels)];
+                        sum += std::exp(epsilon * (x - m));
+                        finite_values_count += std::isfinite(x);
+                    }
+                    int sum_mul = K;
+                    if (softmax_mode) {
+                        sum_mul = 1;
+                    } else if (ignore_inf_values) {
+                        sum_mul = finite_values_count;
+                    }
+                    if (additive) {
+                        out[MEX_IDX(w,h,c,0,width,height,channels)] += mul * ((std::log(sum / sum_mul) / epsilon) + m);
+                    } else {
+                        out[MEX_IDX(w,h,c,0,width,height,channels)] = (std::log(sum / sum_mul) / epsilon) + m;
+                    }
+                } else if (isinf(epsilon)) {
+                    if (additive) {
+                        out[MEX_IDX(w,h,c,0,width,height,channels)] += mul * m;
+                    } else {
+                        out[MEX_IDX(w,h,c,0,width,height,channels)] = m;
+                    }
+                }
+            }
+        }
+    }
+}
+
+template<typename T>
+class MEXRefKernelCPU : public MEXKernelCommon {
+public:
+
+    using Base = MEXKernelCommon;
+    using Dtype = T;
+
+    MEXRefKernelCPU(OpKernelConstruction *context) : Base(context) {}
+
+    void Compute(OpKernelContext *context) override {
+        CalculateDimensionsWithConext(context);
+
+        auto input = context->input(0);
+        auto input_t = input.tensor<T, 4>();
+
+        auto offsets = context->input(1);
+        auto offsets_t = offsets.tensor<T, 5>();
+
+        Tensor *output = NULL;
+
+        TensorShape output_shape{batch_, channels_out_total_, height_out_, width_out_};
+        OP_REQUIRES_OK(context, context->allocate_output(0, output_shape, &output));
+        auto output_t = output->tensor<T, 4>();
+
+        Tensor col_buffer, tmp_buffer;
+        TensorShape col_buffer_shape{{K_ * channels_out_ * height_out_ * width_out_}};
+        context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer);
+        context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &tmp_buffer);
+        auto col_buffer_t = col_buffer.tensor<T, 1>();
+        auto tmp_buffer_t = col_buffer.tensor<T, 1>();
+
+
+        Dtype* col_buff = col_buffer_t.data();
+        Dtype* temp_buff = tmp_buffer_t.data();
+
+        auto input_at_batch = [&](int n) {
+            return input_t.data() + n * channels_ * height_ * width_;
+        };
+
+        auto output_at_batch = [&](int n) {
+            return output_t.data() + n * channels_out_total_ * height_out_ * width_out_;
+        };
+
+        const Dtype* offsets_data = offsets_t.data();
+
+        for (int n = 0; n < batch_; ++n) {
+            for (int inst = 0; inst < num_instances_; ++inst) {
+                simnets_tf::im2col_3d_cpu(
+                        input_at_batch(n),
+                        channels_, height_, width_,
+                        block_c_, block_h_, block_w_,
+                        pad_c_, pad_h_, pad_w_,
+                        stride_c_, stride_h_, stride_w_,
+                        col_buff, blocks_round_down_, blocks_out_of_bounds_value_);
+                for (int w = 0; w < width_out_; ++w) {
+                    for (int h = 0; h < height_out_; ++h) {
+                        for (int c = 0; c < channels_out_; ++c) {
+                            for (int k = 0; k < K_; ++k) {
+                                const int ow = use_unshared_regions_ ? w % offsets_w_ : w / shared_offsets_region_w_;
+                                const int oh = use_unshared_regions_ ? h % offsets_h_ : h / shared_offsets_region_h_;
+                                const int oc = use_unshared_regions_ ? c % offsets_c_ : c / shared_offsets_region_c_;
+                                const int off_set_idx = MEX_IDX(ow, oh, oc, 0, offsets_w_, offsets_h_, offsets_c_);
+                                const Dtype off_temp = offsets_data[off_set_idx * num_instances_ * K_ + inst * K_ + k];
+                                const Dtype off = off_temp;
+                                col_buff[MEX_IDX(w,h,c,k,width_out_,height_out_,channels_out_)] += off;
+                                temp_buff[MEX_IDX(w,h,c,k,width_out_,height_out_,channels_out_)] = off;
+                            }
+                        }
+                    }
+                }
+                mex_ref(col_buff,
+                          epsilon_, width_out_, height_out_, channels_out_, K_,
+                          output_at_batch(n) + (width_out_ * height_out_ * channels_out_) * inst,
+                          false, Dtype(1), false, softmax_mode_);
+            }
+        }
+    }
+};
+
 REGISTER_KERNEL_BUILDER(
         Name("Mex")
                 .Device(DEVICE_CPU)

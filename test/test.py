@@ -194,18 +194,54 @@ class MexTests(tf.test.TestCase):
         images = np.random.normal(size=(5,1,90,90)).astype(np.float64)
         images = tf.constant(images)
 
-        nregions = mex_dims_helper([1, 90, 90], 3, blocks=[3], padding=[1], strides=[1])
+        nregions = mex_dims_helper([1, 90, 90], 3, blocks=[3], padding=[1], strides=[2])
         #offsets = np.ones((nregions, 3, 1, 3, 3), np.float64)
         offsets = np.random.normal(size=(nregions, 3, 1, 3, 3)).astype(np.float64)
         offsets = tf.constant(offsets)
 
         with tf.device('/cpu:0'):
-            m = mex(images, offsets, num_instances=3, epsilon=1, padding=[1])
-        mr = mex_ref(images, offsets, num_instances=3, epsilon=1, padding=[1])
+            m = mex(images, offsets, num_instances=3, epsilon=1, padding=[1], strides=[2])
+        mr = mex_ref(images, offsets, num_instances=3, epsilon=1, padding=[1], strides=[2])
         with self.test_session():
             mnp = m.eval()
             mrnp = mr.eval()
         self.assertNDArrayNear(mnp, mrnp, 1e-2)
+
+    def _run_ref_test(self, tests_dict):
+        all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
+        for idx, tst in enumerate(all_tests):
+            with self.subTest(**tst):
+                with self.test_session():
+                    tst['blocks'][0] = min(tst['blocks'][0], tst['im_dims'][1])
+                    images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
+                    #images = np.ones((1,3,800,800), np.float32)
+                    images = tf.constant(images)
+
+                    nregions = mex_dims_helper(tst['im_dims'][1:], tst['num_instances'], blocks=tst['blocks'],
+                                               padding=tst['padding'], strides=tst['strides'])
+                    params_dim = (nregions, tst['num_instances'], *tst['blocks'])
+                    offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
+                    offsets = tf.constant(offsets)
+
+                    args = (images, offsets)
+                    kwargs = dict(strides=tst['strides'],
+                                  padding=tst['padding'], num_instances=tst['num_instances'])
+                    with tf.device(tst['device']):
+                        m = mex(*args, **kwargs)
+                    m_ref = mex_ref(*args, **kwargs)
+                    mnp = m.eval()
+                    mrnp = m_ref.eval()
+                    self.assertNDArrayNear(mnp, mrnp, 1e-2)
+
+    def test_reference_dimensions(self):
+        tests_dict = {'strides': [[1,s1,s2] for s1 in [1,2] for s2 in [1,2]],
+                      'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [40,41] for d in [40]],
+                      'dtype': [np.float64],
+                      'num_instances': [1,3],
+                      'device': ['/cpu:0'],
+                      'blocks': [[s1,s2,s3] for s1 in [1,3] for s2 in [1,3] for s3 in [3]],
+                      'padding': [[0], [1]]}
+        self._run_ref_test(tests_dict)
 
 if __name__ == '__main__':
     tf.test.main()

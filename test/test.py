@@ -26,6 +26,7 @@ def mex_dims_helper(input_dim, num_instances,
                                                *arr(blocks), *arr(shared_offset_region),
                                                *arr(unshared_offset_region))
 mex = so.mex
+mex_ref = so.mex_ref
 
 @tf.RegisterGradient("Similarity")
 def _similarity_grad(op, grad):
@@ -189,19 +190,24 @@ class SimilarityTests(tf.test.TestCase):
 class MexTests(tf.test.TestCase):
 
     def test_sanity(self):
-        images = np.ones((5,1,30,30), np.float64)
+        #images = np.zeros((1,1,9,9), np.float64)
+        images = np.random.normal(size=(5,1,90,90)).astype(np.float64)
         images = tf.constant(images)
 
-        offsets = np.zeros((784, 3, 1, 3, 3), np.float64)
+        nregions = mex_dims_helper([1, 90, 90], 3, blocks=[3], padding=[1], strides=[1])
+        #offsets = np.ones((nregions, 3, 1, 3, 3), np.float64)
+        offsets = np.random.normal(size=(nregions, 3, 1, 3, 3)).astype(np.float64)
         offsets = tf.constant(offsets)
 
         with tf.device('/cpu:0'):
             m = mex(images, offsets, num_instances=3, epsilon=1, padding=[1])
+        mr = mex_ref(images, offsets, num_instances=3, epsilon=1, padding=[1])
         with self.test_session():
             mnp = m.eval()
-        print(mnp.shape)
+            mrnp = mr.eval()
+        self.assertNDArrayNear(mnp, mrnp, 1e-2)
 
 if __name__ == '__main__':
-    #tf.test.main()
-    r = mex_dims_helper([1,30,30], [0], [1], 3, True, True, [3], [-1], [-1])
-    print(r)
+    tf.test.main()
+    #r = mex_dims_helper([1,30,30], 3, [3], [0], [1], True, True, [-1], [-1])
+    #print(r)

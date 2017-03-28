@@ -241,7 +241,7 @@ void mex_ref(const Dtype* in, const Dtype epsilon,
                     } else {
                         out[MEX_IDX(w,h,c,0,width,height,channels)] = (std::log(sum / sum_mul) / epsilon) + m;
                     }
-                } else if (isinf(epsilon)) {
+                } else if (std::isinf(epsilon)) {
                     if (additive) {
                         out[MEX_IDX(w,h,c,0,width,height,channels)] += mul * m;
                     } else {
@@ -282,8 +282,10 @@ public:
         context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer);
         context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &tmp_buffer);
         auto col_buffer_t = col_buffer.tensor<T, 1>();
-        auto tmp_buffer_t = col_buffer.tensor<T, 1>();
+        auto tmp_buffer_t = tmp_buffer.tensor<T, 1>();
 
+        col_buffer_t.device(context->eigen_cpu_device()) = col_buffer_t.constant(0);
+        tmp_buffer_t.device(context->eigen_cpu_device()) = tmp_buffer_t.constant(0);
 
         Dtype* col_buff = col_buffer_t.data();
         Dtype* temp_buff = tmp_buffer_t.data();
@@ -300,7 +302,7 @@ public:
 
         for (int n = 0; n < batch_; ++n) {
             for (int inst = 0; inst < num_instances_; ++inst) {
-                simnets_tf::im2col_3d_cpu(
+                simnets_tf::im2col_3d_cpu<T>(
                         input_at_batch(n),
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
@@ -323,7 +325,7 @@ public:
                         }
                     }
                 }
-                mex_ref(col_buff,
+                mex_ref<T>(col_buff,
                           epsilon_, width_out_, height_out_, channels_out_, K_,
                           output_at_batch(n) + (width_out_ * height_out_ * channels_out_) * inst,
                           false, Dtype(1), false, softmax_mode_);
@@ -342,3 +344,14 @@ REGISTER_KERNEL_BUILDER(
                 .Device(DEVICE_CPU)
                 .TypeConstraint<double>("T"),
         MEXKernelCPU<double>);
+
+REGISTER_KERNEL_BUILDER(
+        Name("MexRef")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<float>("T"),
+        MEXRefKernelCPU<float>);
+REGISTER_KERNEL_BUILDER(
+        Name("MexRef")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<double>("T"),
+        MEXRefKernelCPU<double>);

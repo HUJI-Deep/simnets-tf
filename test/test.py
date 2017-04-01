@@ -4,7 +4,7 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 import numpy as np
 import itertools
 import ctypes
-
+# MexTests.test_reference_dimensions
 so = tf.load_op_library('./simnet_ops.so')
 similarity = so.similarity
 similarity_input_grad = so.similarity_input_grad
@@ -33,6 +33,7 @@ def _similarity_grad(op, grad):
     inp = op.inputs[0]
     templates = op.inputs[1]
     weights = op.inputs[2]
+    print(op.outputs[0])
 
     padding = op.get_attr('padding')
     strides = op.get_attr('strides')
@@ -238,7 +239,7 @@ class MexTests(tf.test.TestCase):
                       'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [40,41] for d in [40]],
                       'dtype': [np.float64],
                       'num_instances': [1,3],
-                      'device': ['/cpu:0'],
+                      'device': ['/gpu:0'],
                       'blocks': [[s1,s2,s3] for s1 in [1,3] for s2 in [1,3] for s3 in [3]],
                       'padding': [[0], [1]]}
         self._run_ref_test(tests_dict)

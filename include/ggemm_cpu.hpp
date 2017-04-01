@@ -748,6 +748,7 @@ template <typename T> __forceinline__ __device__ __host__ int sign(T val) {
         }
     }
 
+#define EXP_CUDA __expf
 template<typename Dtype> __device__ __host__ __forceinline__
 Dtype mex_forward_exp(Dtype offset, Dtype data, Dtype max, typename vec<Dtype>::vec2 extra) {
 #ifdef __CUDA_ARCH__
@@ -757,6 +758,7 @@ Dtype mex_forward_exp(Dtype offset, Dtype data, Dtype max, typename vec<Dtype>::
     return std::exp(extra.x * (data + offset - max) + extra.y);
 #endif
 }
+#define LOG_CUDA __logf
 
 template<typename Dtype> __device__ __host__ __forceinline__
 Dtype mex_forward_out(Dtype in, typename vec<Dtype>::vec2 extra) {

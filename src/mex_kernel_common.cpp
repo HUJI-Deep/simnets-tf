@@ -118,6 +118,9 @@ void MexDimensionsData::CalculateDimensions() {
         shared_offsets_region_h_ = ceiled_div(height_out_, unshared_offsets_region_h_);
         shared_offsets_region_w_ = ceiled_div(width_out_, unshared_offsets_region_w_);
         shared_offsets_region_c_ = ceiled_div(channels_out_, unshared_offsets_region_c_);
+        //shared_offsets_region_h_ = height_out_ / unshared_offsets_region_h_;
+        //shared_offsets_region_w_ = width_out_ / unshared_offsets_region_w_;
+        //shared_offsets_region_c_ = channels_out_ / unshared_offsets_region_c_;
     }
 
     num_regions_ = offsets_h_ * offsets_w_ * offsets_c_;

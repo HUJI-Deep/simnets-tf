@@ -35,9 +35,9 @@ void split_patches_cpu(const int N, const int Dim,
                         for (int i = 0; i < W_Step; ++i) {
                             const int base_addr_out = (l * H_Step + j) * W_Step + i;
                             const int base_addr_in  = group_addr + (l * region_step_c * H + j * region_step_h) * W  + i * region_step_w;
-                            if (w_g * W_Step + i >= W ||
-                                h_g * H_Step + j >= H ||
-                                c_g * C_Step + l >= C) {
+                            if (w_g * group_step_w + i * region_step_w >= W ||
+                                h_g * group_step_h + j * region_step_h >= H ||
+                                c_g * group_step_c + l * region_step_c >= C) {
                                 continue;
                             }
                             for (int k = 0; k < Dim; ++k) {

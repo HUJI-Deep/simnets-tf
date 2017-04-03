@@ -36,8 +36,8 @@ extern "C" DLL_PUBLIC int get_mex_offsets_nregions(int, const int* input_dim,
     mdd.height_ = input_h;
     mdd.width_ = input_w;
     mdd.num_instances_ = num_instances;
-    mdd.blocks_round_down_ = blocks_round_down;
-    mdd.use_unshared_regions_ = use_unshared_regions;
+    mdd.blocks_round_down_ = blocks_round_down > 0;
+    mdd.use_unshared_regions_ = use_unshared_regions > 0;
 
     mdd.CalculateDimensions();
     return mdd.num_regions_;

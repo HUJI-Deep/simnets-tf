@@ -72,12 +72,10 @@ def _mex_grad(op, grad):
     unshared_offset_region = op.get_attr('unshared_offset_region')
 
     grad_input = mex_input_grad(inp, offsets, output, grad, num_instances=num_instances, softmax_mode=softmax_mode,
-                                padding=padding,
-                                strides=strides,
-                                epsilon=epsilon,
-                                blocks_out_of_bounds_value=blocks_out_of_bounds_value, blocks_round_down=blocks_round_down,
-                                use_unshared_regions=use_unshared_regions, shared_offset_region=shared_offset_region,
-                                unshared_offset_region=unshared_offset_region)
+                                padding=padding, strides=strides, epsilon=epsilon,
+                                blocks_out_of_bounds_value=blocks_out_of_bounds_value,
+                                blocks_round_down=blocks_round_down, use_unshared_regions=use_unshared_regions,
+                                shared_offset_region=shared_offset_region, unshared_offset_region=unshared_offset_region)
     return [grad_input, None]
 
 
@@ -267,7 +265,6 @@ class MexTests(tf.test.TestCase):
         for idx, tst in enumerate(all_tests):
             with self.subTest(**tst):
                 with self.test_session():
-                    print(100*idx/len(all_tests), '%')
                     tst['blocks'][0] = min(tst['blocks'][0], tst['im_dims'][1])
                     images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
                     #images = np.ones(tst['im_dims'], tst['dtype'])
@@ -324,12 +321,12 @@ class MexTests(tf.test.TestCase):
 
     def test_gradient_input(self):
         tests_dict = {
-            'strides': [[1,1,1]],
+            'strides': [[1,1,2]],
             'im_dims': [(2,3,12,13)],
             'dtype': [np.float64],
             'num_instances': [2],
             'device': ['/cpu:0'],
-            'blocks': [[3,3,3]],
+            'blocks': [[3,3,1]],
             'padding': [[0,1,0]],
             'use_unshared_regions': [True, False],
             'shared_offset_region': [[1,5,4], [2]],

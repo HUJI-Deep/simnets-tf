@@ -45,7 +45,8 @@ if (SIMNETS_WITH_CUDA)
             src/mex_op.cpp
             src/mex_kernel_common.cpp
             src/mex_kernel_cpu.cpp
-            src/mex_kernel_gpu.cu)
+            src/mex_kernel_gpu.cu
+            src/mex_grad_kernel_cpu.cpp)
 else()
     add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
                                   include/ggemm_cpu.hpp
@@ -55,7 +56,8 @@ else()
                                   src/similarity_grad_kernel_cpu.cpp
                                   src/mex_op.cpp
                                   src/mex_kernel_common.cpp
-                                  src/mex_kernel_cpu.cpp)
+                                  src/mex_kernel_cpu.cpp
+                                  src/mex_grad_kernel_cpu.cpp)
 endif()
 
 add_custom_target(test_simnet_ops

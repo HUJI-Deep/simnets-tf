@@ -7,6 +7,25 @@
 
 using namespace tensorflow;
 
+template <typename Dtype, bool REVERSE>
+void split_patches_cpu(const int N, const int Dim,
+                       const int W, const int H, const int C,
+                       const int W_Gs, const int H_Gs, const int C_Gs,
+                       const int W_Step, const int H_Step, const int C_Step,
+                       typename std::conditional<REVERSE, Dtype*, const Dtype*>::type in,
+                       Dtype* out, const bool use_unshared_regions_);
+
+namespace
+{
+    template <typename T, typename D>
+    void copy_with_eigen(T* dest, const T* source, size_t sz, const D& eigen_device)
+    {
+        typename TTypes<T,1>::ConstTensor src(source, sz);
+        typename TTypes<T,1>::Tensor dst(dest, sz);
+        dst.device(eigen_device) = src;
+    }
+}
+
 template<typename T>
 class MEXGradInputKernelCPU : public MEXKernelCommon {
 public:
@@ -41,7 +60,7 @@ public:
 
         Tensor *input_grad = NULL;
         OP_REQUIRES_OK(context, context->allocate_output(0, context->input(0).shape(), &input_grad));
-        auto input_grad_t = output->input_grad<T, 4>();
+        auto input_grad_t = input_grad->tensor<T, 4>();
 
         Tensor col_buffer, col_buffer_grad;
         TensorShape col_buffer_shape{{K_ * channels_out_ * height_out_ * width_out_ + ggemm_padded_output_size(K_, N_)}};
@@ -71,20 +90,17 @@ public:
 
         // -------------------------------------------------------------------------------
 
-        const Dtype* offsets = offsets_padded_t.data();
         const Dtype* transposed_offsets = NULL;
         transposed_offsets = static_cast<const Dtype*>(offsets_padded_transpose_t.data());
-
-        // TODO: Transpose with eigen shuffle
-        for (int r = 0; r < num_regions_; ++r) {
-            const int offsets_idx = r * M_ * K_;
-            caffe_cpu_transpose(M_, K_,
-                                offsets + offsets_idx,
-                                static_cast<Dtype*>(transposed_offsets_->mutable_cpu_data()) + offsets_idx);
+        {
+            typename TTypes<T, 3>::ConstTensor tmp_offsets(offsets_padded_t.data(), num_regions_, M_, K_);
+            typename TTypes<T, 3>::Tensor tmp_offsets_transpose(offsets_padded_transpose_t.data(), num_regions_, K_, M_);
+            Eigen::array<int, 3> indices{0,2,1};
+            tmp_offsets_transpose.device(context->eigen_cpu_device()) = tmp_offsets.shuffle(indices);
         }
 
-        const Dtype* top_diff = input_grad_t.data();
-        const Dtype* top_data = input_t.data();
+        const Dtype* top_diff = output_grad_t.data();
+        const Dtype* top_data = output_t.data();
         Dtype* col_buff = NULL;
         Dtype* col_diff = NULL;
         if (!is_1x1_) {
@@ -98,12 +114,10 @@ public:
             return input_t.data() + n * channels_ * height_ * width_;
         };
 
-        auto output_at_batch = [&](int n) {
-            return output_t.data() + n * channels_out_total_ * height_out_ * width_out_;
+        auto input_grad_at_batch = [&](int n) {
+            return input_grad_t.data() + n * channels_ * height_ * width_;
         };
 
-        const Dtype* bottom_data = input_t.data();
-        Dtype* bottom_diff = output_t.data();
         for (int n = 0; n < batch_; ++n) {
             // Since we saved memory in the forward pass by not storing all col
             // data, we will need to recompute them.
@@ -117,18 +131,22 @@ public:
                         col_buff,
                         blocks_round_down_, blocks_out_of_bounds_value_);
             } else {  // special case for 1x1 convolution
-                col_diff = bottom_diff + bottom[bottom_idx]->offset(n);
-                col_buff = bottom[bottom_idx]->mutable_cpu_data() + bottom[bottom_idx]->offset(n);
+                col_diff = input_grad_at_batch(n);
+                col_buff =  input_at_batch(n);
             }
 
             // Prepare input for backprop
             const Dtype* current_top_data = top_data + n * M_ * N_;
             const Dtype* current_top_diff = top_diff + n * M_ * N_;
+            Dtype *split_patches_in, *split_patches_in_diff;
+            Dtype *split_patches_out, *split_patches_out_diff;
+            typename vec<T>::vec2 *split_patches_out_inter;
+
             if (num_regions_ > 1) {
-                split_patches_in = split_patches_in_.mutable_cpu_data();
-                split_patches_in_diff = split_patches_in_.mutable_cpu_diff();
-                split_patches_out = split_patches_out_.mutable_cpu_data();
-                split_patches_out_diff = split_patches_out_.mutable_cpu_diff();
+                split_patches_in = split_patches_in_t.data();
+                split_patches_in_diff = split_patches_in_grad_t.data();
+                split_patches_out = split_patches_out_t.data();
+                split_patches_out_diff = split_patches_out_grad_t.data();
                 split_patches_cpu<Dtype, false>(N_, K_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
@@ -150,12 +168,12 @@ public:
                 split_patches_out = (Dtype*)current_top_data;
                 split_patches_out_diff = (Dtype*)current_top_diff;
             }
-            split_patches_out_inter = static_cast<typename vec<Dtype>::vec2 *>(
-                    split_patches_out_inter_->mutable_cpu_data());
+            split_patches_out_inter = reinterpret_cast<typename vec<Dtype>::vec2 *>(
+                    split_patches_inter_t.data());
             interlace_cpu(num_regions_ * M_ * region_size_, split_patches_out, split_patches_out_diff,
                           split_patches_out_inter);
             // Caculate backprop
-            if (std::isfinite(epsilon)) {
+            if (std::isfinite(epsilon_)) {
                 ggemm_readc_cpu
                         <false, false, Dtype, typename vec<Dtype>::vec2, Dtype, typename vec<Dtype>::vec2,
                                 mex_backward_bottom_finite<Dtype>, ggemm_add<Dtype>, false,
@@ -163,7 +181,7 @@ public:
                                 true, true, true>
                         (K_, region_size_, M_, transposed_offsets, split_patches_out_inter,
                          split_patches_in, split_patches_in_diff, 0,
-                         make_vec2<Dtype>(epsilon, softmax_mode_ ? Dtype(0) : (Dtype)-std::log(K_)), num_regions_);
+                         make_vec2<Dtype>(epsilon_, softmax_mode_ ? Dtype(0) : (Dtype)-std::log(K_)), num_regions_);
             } else {
                 ggemm_readc_cpu
                         <false, false, Dtype, typename vec<Dtype>::vec2, Dtype, uint8_t,
@@ -183,15 +201,26 @@ public:
             }
 
             if (!is_1x1_) {
-                col2im_3d_cpu(
+                simnets_tf::col2im_3d_cpu<T>(
                         col_diff,
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
                         pad_c_, pad_h_, pad_w_,
                         stride_c_, stride_h_, stride_w_,
-                        bottom_diff + bottom[bottom_idx]->offset(n),
+                        input_grad_at_batch(n),
                         blocks_round_down_);
             }
         }
     }
 };
+
+REGISTER_KERNEL_BUILDER(
+        Name("MexInputGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<float>("T"),
+        MEXGradInputKernelCPU<float>);
+REGISTER_KERNEL_BUILDER(
+        Name("MexInputGrad")
+                .Device(DEVICE_CPU)
+                .TypeConstraint<double>("T"),
+        MEXGradInputKernelCPU<double>);

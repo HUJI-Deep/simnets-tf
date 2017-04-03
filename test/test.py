@@ -27,13 +27,13 @@ def mex_dims_helper(input_dim, num_instances,
                                                *arr(unshared_offset_region))
 mex = so.mex
 mex_ref = so.mex_ref
+mex_input_grad = so.mex_input_grad
 
 @tf.RegisterGradient("Similarity")
 def _similarity_grad(op, grad):
     inp = op.inputs[0]
     templates = op.inputs[1]
     weights = op.inputs[2]
-    print(op.outputs[0])
 
     padding = op.get_attr('padding')
     strides = op.get_attr('strides')
@@ -54,10 +54,31 @@ def _similarity_grad(op, grad):
                                                          ignore_nan_input=ignore_nan_input, out_of_bounds_value=out_of_bounds_value)
     return [grad_input, grad_templates, grad_weights]
 
-# TODO: Test 1x1 case
-# TODO: Test different attributes
-# TODO: Test different odd/even same/valid combinations
-# TODO: Test float/double
+@tf.RegisterGradient("Mex")
+def _mex_grad(op, grad):
+    inp = op.inputs[0]
+    offsets = op.inputs[1]
+    output = op.outputs[0]
+
+    num_instances = op.get_attr('num_instances')
+    softmax_mode = op.get_attr('softmax_mode')
+    padding = op.get_attr('padding')
+    strides = op.get_attr('strides')
+    epsilon = op.get_attr('epsilon')
+    blocks_out_of_bounds_value = op.get_attr('blocks_out_of_bounds_value')
+    blocks_round_down = op.get_attr('blocks_round_down')
+    use_unshared_regions = op.get_attr('use_unshared_regions')
+    shared_offset_region = op.get_attr('shared_offset_region')
+    unshared_offset_region = op.get_attr('unshared_offset_region')
+
+    grad_input = mex_input_grad(inp, offsets, output, grad, num_instances=num_instances, softmax_mode=softmax_mode,
+                                padding=padding,
+                                strides=strides,
+                                epsilon=epsilon,
+                                blocks_out_of_bounds_value=blocks_out_of_bounds_value, blocks_round_down=blocks_round_down,
+                                use_unshared_regions=use_unshared_regions, shared_offset_region=shared_offset_region,
+                                unshared_offset_region=unshared_offset_region)
+    return [grad_input, None]
 
 
 class SimilarityTests(tf.test.TestCase):
@@ -241,6 +262,38 @@ class MexTests(tf.test.TestCase):
                     mrnp = m_ref.eval()
                     self.assertAllClose(mnp, mrnp, 1e-2)
 
+    def _run_grad_test(self, tests_dict):
+        all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
+        for idx, tst in enumerate(all_tests):
+            with self.subTest(**tst):
+                with self.test_session():
+                    print(100*idx/len(all_tests), '%')
+                    tst['blocks'][0] = min(tst['blocks'][0], tst['im_dims'][1])
+                    images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
+                    #images = np.ones(tst['im_dims'], tst['dtype'])
+                    images = tf.constant(images)
+
+                    nregions = mex_dims_helper(tst['im_dims'][1:], tst['num_instances'], blocks=tst['blocks'],
+                                               padding=tst['padding'], strides=tst['strides'],
+                                               use_unshared_regions=tst['use_unshared_regions'],
+                                               shared_offset_region=tst['shared_offset_region'],
+                                               unshared_offset_region=tst['unshared_offset_region'])
+                    params_dim = (nregions, tst['num_instances'], *tst['blocks'])
+                    offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
+                    #offsets = np.ones(params_dim, tst['dtype'])
+                    offsets = tf.constant(offsets)
+
+                    args = (images, offsets)
+                    kwargs = dict(strides=tst['strides'],
+                                  padding=tst['padding'], num_instances=tst['num_instances'],
+                                  use_unshared_regions=tst['use_unshared_regions'],
+                                  shared_offset_region=tst['shared_offset_region'],
+                                  unshared_offset_region=tst['unshared_offset_region'])
+                    with tf.device(tst['device']):
+                        m = mex(*args, **kwargs)
+                        computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(m), [1], delta=1e-3)
+                    self.assertAllClose(computed, numeric, 1e-2)
+
     def test_reference_dimensions_shared(self):
         tests_dict = {
             'strides': [[1,s1,s2] for s1 in [1,4] for s2 in [1,4]],
@@ -268,6 +321,20 @@ class MexTests(tf.test.TestCase):
             'shared_offset_region': [[2]],
             'unshared_offset_region': [[1,5,4], [2]]}
         self._run_ref_test(tests_dict)
+
+    def test_gradient_input(self):
+        tests_dict = {
+            'strides': [[1,1,1]],
+            'im_dims': [(2,3,12,13)],
+            'dtype': [np.float64],
+            'num_instances': [2],
+            'device': ['/cpu:0'],
+            'blocks': [[3,3,3]],
+            'padding': [[0,1,0]],
+            'use_unshared_regions': [True, False],
+            'shared_offset_region': [[1,5,4], [2]],
+            'unshared_offset_region': [[1,5,4], [2]]}
+        self._run_grad_test(tests_dict)
 
 if __name__ == '__main__':
     tf.test.main()

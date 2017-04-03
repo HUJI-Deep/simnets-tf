@@ -111,6 +111,25 @@ REGISTER_OP("Mex")
 // padding: The type of padding algorithm to use.
 // output: The sum pooled output tensor.
 // )doc");
+
+REGISTER_OP("MexInputGrad")
+        .Input("input: T")
+        .Input("offsets: T")
+        .Input("orig_output: T")
+        .Input("output_grad: T")
+        .Output("input_grad: T")
+        .Attr("T: {float32, float64}")
+        .Attr("num_instances: int")
+        .Attr("softmax_mode: bool = false")
+        .Attr("padding: list(int) = [0]")
+        .Attr("strides: list(int) = [1]")
+        .Attr("epsilon: float = 1.0")
+        .Attr("blocks_out_of_bounds_value: float = 0.0")
+        .Attr("blocks_round_down: bool = true")
+        .Attr("use_unshared_regions: bool = true")
+        .Attr("shared_offset_region: list(int) = [-1]")
+        .Attr("unshared_offset_region: list(int) = [-1]");
+
 REGISTER_OP("MexRef")
 .Input("input: T")
         .Input("offsets: T")

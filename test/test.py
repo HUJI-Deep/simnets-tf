@@ -215,36 +215,59 @@ class MexTests(tf.test.TestCase):
                 with self.test_session():
                     tst['blocks'][0] = min(tst['blocks'][0], tst['im_dims'][1])
                     images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
-                    #images = np.ones((1,3,800,800), np.float32)
+                    #images = np.ones(tst['im_dims'], tst['dtype'])
                     images = tf.constant(images)
 
                     nregions = mex_dims_helper(tst['im_dims'][1:], tst['num_instances'], blocks=tst['blocks'],
-                                               padding=tst['padding'], strides=tst['strides'])
+                                               padding=tst['padding'], strides=tst['strides'],
+                                               use_unshared_regions=tst['use_unshared_regions'],
+                                               shared_offset_region=tst['shared_offset_region'],
+                                               unshared_offset_region=tst['unshared_offset_region'])
                     params_dim = (nregions, tst['num_instances'], *tst['blocks'])
                     offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
+                    #offsets = np.ones(params_dim, tst['dtype'])
                     offsets = tf.constant(offsets)
 
                     args = (images, offsets)
                     kwargs = dict(strides=tst['strides'],
-                                  padding=tst['padding'], num_instances=tst['num_instances'])
+                                  padding=tst['padding'], num_instances=tst['num_instances'],
+                                  use_unshared_regions=tst['use_unshared_regions'],
+                                  shared_offset_region=tst['shared_offset_region'],
+                                  unshared_offset_region=tst['unshared_offset_region'])
                     with tf.device(tst['device']):
                         m = mex(*args, **kwargs)
                     m_ref = mex_ref(*args, **kwargs)
                     mnp = m.eval()
                     mrnp = m_ref.eval()
-                    self.assertNDArrayNear(mnp, mrnp, 1e-2)
+                    self.assertAllClose(mnp, mrnp, 1e-2)
 
-    def test_reference_dimensions(self):
-        tests_dict = {'strides': [[1,s1,s2] for s1 in [1,2] for s2 in [1,2]],
-                      'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [40,41] for d in [40]],
-                      'dtype': [np.float64],
-                      'num_instances': [1,3],
-                      'device': ['/gpu:0'],
-                      'blocks': [[s1,s2,s3] for s1 in [1,3] for s2 in [1,3] for s3 in [3]],
-                      'padding': [[0], [1]]}
+    def test_reference_dimensions_shared(self):
+        tests_dict = {
+            'strides': [[1,s1,s2] for s1 in [1,4] for s2 in [1,4]],
+            'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [41,40] for d in [40]],
+            'dtype': [np.float32],
+            'num_instances': [2],
+            'device': ['/cpu:0', '/gpu:0'],
+            'blocks': [[s1,s2,s3] for s1 in [1] for s2 in [1,3] for s3 in [3]],
+            'padding': [[0,1,0]],
+            'use_unshared_regions': [False],
+            'shared_offset_region': [[2], [3]],
+            'unshared_offset_region': [[1]]}
+        self._run_ref_test(tests_dict)
+
+    def test_reference_dimensions_unshared(self):
+        tests_dict = {
+            'strides': [[1,s1,s2] for s1 in [1,4] for s2 in [1,4]],
+            'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [41,40] for d in [40]],
+            'dtype': [np.float32],
+            'num_instances': [2],
+            'device': ['/cpu:0', '/gpu:0'],
+            'blocks': [[s1,s2,s3] for s1 in [1] for s2 in [1,3] for s3 in [3]],
+            'padding': [[0,1,0]],
+            'use_unshared_regions': [True],
+            'shared_offset_region': [[2]],
+            'unshared_offset_region': [[1,5,4], [2]]}
         self._run_ref_test(tests_dict)
 
 if __name__ == '__main__':
     tf.test.main()
-    #r = mex_dims_helper([1,30,30], 3, [3], [0], [1], True, True, [-1], [-1])
-    #print(r)

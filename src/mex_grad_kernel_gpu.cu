@@ -1,9 +1,9 @@
 //
-// Created by elhanani on 01/04/17.
+// Created by elhanani on 04/04/17.
 //
 
 #include "mex_kernel_common.hpp"
-#include "ggemm_cpu.hpp"
+#include "ggemm.cuh"
 
 using namespace tensorflow;
 
@@ -19,13 +19,13 @@ namespace
 }
 
 template<typename T>
-class MEXGradInputKernelCPU : public MEXKernelCommon {
+class MEXGradInputKernelGPU : public MEXKernelCommon {
 public:
 
     using Base = MEXKernelCommon;
     using Dtype = T;
 
-    MEXGradInputKernelCPU(OpKernelConstruction *context) : Base(context) {}
+    MEXGradInputKernelGPU(OpKernelConstruction *context) : Base(context) {}
 
     void Compute(OpKernelContext *context) override {
         CalculateDimensionsWithConext(context);
@@ -47,7 +47,7 @@ public:
         auto offsets_padded_t = offsets_padded.tensor<T, 1>();
         auto offsets_padded_transpose_t = offsets_padded_transpose.tensor<T, 1>();
         copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(),
-                        offsets_unpadded_t.size(), context->eigen_cpu_device());
+                        offsets_unpadded_t.size(), context->eigen_gpu_device());
 
 
         Tensor *input_grad = NULL;
@@ -88,7 +88,7 @@ public:
             typename TTypes<T, 3>::ConstTensor tmp_offsets(offsets_padded_t.data(), num_regions_, M_, K_);
             typename TTypes<T, 3>::Tensor tmp_offsets_transpose(offsets_padded_transpose_t.data(), num_regions_, K_, M_);
             Eigen::array<int, 3> indices{0,2,1};
-            tmp_offsets_transpose.device(context->eigen_cpu_device()) = tmp_offsets.shuffle(indices);
+            tmp_offsets_transpose.device(context->eigen_gpu_device()) = tmp_offsets.shuffle(indices);
         }
 
         const Dtype* top_diff = output_grad_t.data();
@@ -114,7 +114,7 @@ public:
             // Since we saved memory in the forward pass by not storing all col
             // data, we will need to recompute them.
             if (!is_1x1_) {
-                simnets_tf::im2col_3d_cpu<T>(
+                simnets_tf::im2col_3d_gpu<T>(
                         input_at_batch(n),
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
@@ -139,17 +139,17 @@ public:
                 split_patches_in_diff = split_patches_in_grad_t.data();
                 split_patches_out = split_patches_out_t.data();
                 split_patches_out_diff = split_patches_out_grad_t.data();
-                split_patches_cpu<Dtype, false>(N_, K_,
+                split_patches_gpu<Dtype, false>(N_, K_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
                                                 col_buff, split_patches_in, use_unshared_regions_);
-                split_patches_cpu<Dtype, false>(N_, M_,
+                split_patches_gpu<Dtype, false>(N_, M_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
                                                 current_top_data, split_patches_out, use_unshared_regions_);
-                split_patches_cpu<Dtype, false>(N_, M_,
+                split_patches_gpu<Dtype, false>(N_, M_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
@@ -162,30 +162,28 @@ public:
             }
             split_patches_out_inter = reinterpret_cast<typename vec<Dtype>::vec2 *>(
                     split_patches_inter_t.data());
-            interlace_cpu(num_regions_ * M_ * region_size_, split_patches_out, split_patches_out_diff,
+            interlace_gpu(num_regions_ * M_ * region_size_, split_patches_out, split_patches_out_diff,
                           split_patches_out_inter);
             // Caculate backprop
             if (std::isfinite(epsilon_)) {
-                ggemm_readc_cpu
+                ggemm_readc_gpu
                         <false, false, Dtype, typename vec<Dtype>::vec2, Dtype, typename vec<Dtype>::vec2,
-                                mex_backward_bottom_finite<Dtype>, ggemm_add<Dtype>, false,
-                                no_op<Dtype, typename vec<Dtype>::vec2>, false,
+                                mex_backward_bottom_finite<Dtype>, ggemm_add<Dtype>, false, no_op<Dtype, typename vec<Dtype>::vec2>, false,
                                 true, true, true>
                         (K_, region_size_, M_, transposed_offsets, split_patches_out_inter,
-                         split_patches_in, split_patches_in_diff, 0,
+                         split_patches_in, split_patches_in_diff, 0, make_vec2<Dtype>(epsilon_ > 0 ? INFINITY : -INFINITY, 0), 0,
                          make_vec2<Dtype>(epsilon_, softmax_mode_ ? Dtype(0) : (Dtype)-std::log(K_)), num_regions_);
             } else {
-                ggemm_readc_cpu
+                ggemm_readc_gpu
                         <false, false, Dtype, typename vec<Dtype>::vec2, Dtype, uint8_t,
-                                mex_backward_bottom_infinite<Dtype>, ggemm_add<Dtype>, false,
-                                no_op<Dtype, uint8_t>, false,
+                                mex_backward_bottom_infinite<Dtype>, ggemm_add<Dtype>, false, no_op<Dtype, uint8_t>, false,
                                 true, true, true>
                         (K_, region_size_, M_, transposed_offsets, split_patches_out_inter,
-                         split_patches_in, split_patches_in_diff, 0, 0, num_regions_);
+                         split_patches_in, split_patches_in_diff, 0, make_vec2<Dtype>(0, 0), 0, 0, num_regions_);
             }
             // Copy to bottom if needed
             if (num_regions_ > 1) {
-                split_patches_cpu<Dtype, true>(N_, K_,
+                split_patches_gpu<Dtype, true>(N_, K_,
                                                width_out_, height_out_, channels_out_,
                                                offsets_w_, offsets_h_, offsets_c_,
                                                shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
@@ -193,7 +191,7 @@ public:
             }
 
             if (!is_1x1_) {
-                simnets_tf::col2im_3d_cpu<T>(
+                simnets_tf::col2im_3d_gpu<T>(
                         col_diff,
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
@@ -207,13 +205,13 @@ public:
 };
 
 template<typename T>
-class MEXGradOffsetsKernelCPU : public MEXKernelCommon {
+class MEXGradOffsetsKernelGPU : public MEXKernelCommon {
 public:
 
     using Base = MEXKernelCommon;
     using Dtype = T;
 
-    MEXGradOffsetsKernelCPU(OpKernelConstruction *context) : Base(context) {}
+    MEXGradOffsetsKernelGPU(OpKernelConstruction *context) : Base(context) {}
 
     void Compute(OpKernelContext *context) override {
         CalculateDimensionsWithConext(context);
@@ -231,7 +229,7 @@ public:
         auto zero_out = [&](Tensor& t)
         {
             auto flat = t.flat<T>();
-            flat.device(context->eigen_cpu_device()) = flat.constant(0);
+            flat.device(context->eigen_gpu_device()) = flat.constant(0);
         };
 
         Tensor offsets_padded;
@@ -239,7 +237,7 @@ public:
         context->allocate_temp(DataTypeToEnum<T>::value, offsets_padded_shape, &offsets_padded);
         auto offsets_padded_t = offsets_padded.tensor<T, 1>();
         copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(),
-                        offsets_unpadded_t.size(), context->eigen_cpu_device());
+                        offsets_unpadded_t.size(), context->eigen_gpu_device());
 
 
         Tensor *offsets_grad = NULL;
@@ -295,7 +293,7 @@ public:
             // Since we saved memory in the forward pass by not storing all col
             // data, we will need to recompute them.
             if (!is_1x1_) {
-                simnets_tf::im2col_3d_cpu<T>(
+                simnets_tf::im2col_3d_gpu<T>(
                         input_at_batch(n),
                         channels_, height_, width_,
                         block_c_, block_h_, block_w_,
@@ -318,17 +316,17 @@ public:
                 split_patches_in = split_patches_in_t.data();
                 split_patches_out = split_patches_out_t.data();
                 split_patches_out_diff = split_patches_out_grad_t.data();
-                split_patches_cpu<Dtype, false>(N_, K_,
+                split_patches_gpu<Dtype, false>(N_, K_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
                                                 col_buff, split_patches_in, use_unshared_regions_);
-                split_patches_cpu<Dtype, false>(N_, M_,
+                split_patches_gpu<Dtype, false>(N_, M_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
                                                 current_top_data, split_patches_out, use_unshared_regions_);
-                split_patches_cpu<Dtype, false>(N_, M_,
+                split_patches_gpu<Dtype, false>(N_, M_,
                                                 width_out_, height_out_, channels_out_,
                                                 offsets_w_, offsets_h_, offsets_c_,
                                                 shared_offsets_region_w_, shared_offsets_region_h_, shared_offsets_region_c_,
@@ -340,7 +338,7 @@ public:
             }
             split_patches_out_inter = reinterpret_cast<typename vec<Dtype>::vec2 *>(
                     split_patches_inter_t.data());
-            interlace_cpu(num_regions_ * M_ * region_size_, split_patches_out, split_patches_out_diff,
+            interlace_gpu(num_regions_ * M_ * region_size_, split_patches_out, split_patches_out_diff,
                           split_patches_out_inter);
 
             // temp use of split_patches_in_diff for transposing the patches
@@ -348,23 +346,25 @@ public:
                 typename TTypes<T, 3>::ConstTensor tmp_patches(split_patches_in, num_regions_, K_, region_size_);
                 typename TTypes<T, 3>::Tensor tmp_patches_transpose(split_patches_in_grad_t.data(), num_regions_, region_size_, K_);
                 Eigen::array<int, 3> indices{0,2,1};
-                tmp_patches_transpose.device(context->eigen_cpu_device()) = tmp_patches.shuffle(indices);
+                tmp_patches_transpose.device(context->eigen_gpu_device()) = tmp_patches.shuffle(indices);
             }
             if (std::isfinite(epsilon_)) {
-                ggemm_readc_cpu
-                        <false, false, typename vec<Dtype>::vec2, Dtype, Dtype, typename vec<Dtype>::vec2,
+                ggemm_readc_gpu
+                        <false, true, typename vec<Dtype>::vec2, Dtype, Dtype, typename vec<Dtype>::vec2,
                                 mex_backward_offsets_finite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, typename vec<Dtype>::vec2>, false,
                                 true, true, true>
-                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
-                         offsets_padded_t.data(), offsets_grad_t.data(), 0,
+                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in,
+                         offsets_padded_t.data(), offsets_grad_t.data(),
+                         make_vec2<Dtype>(epsilon_ > 0 ? INFINITY : -INFINITY, 0), 0, 0,
                          make_vec2<Dtype>(epsilon_, softmax_mode_ ? Dtype(0) : (Dtype)-std::log(K_)), num_regions_);
             } else {
-                ggemm_readc_cpu
-                        <false, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
+                ggemm_readc_gpu
+                        <false, true, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
                                 mex_backward_offsets_infinite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, uint8_t>, false,
                                 true, true, true>
-                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
-                         offsets_padded_t.data(), offsets_grad_t.data(), 0, 0, num_regions_);
+                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in,
+                         offsets_padded_t.data(), offsets_grad_t.data(),
+                         make_vec2<Dtype>(0, 0), 0, 0, 0, num_regions_);
             }
         }
     }
@@ -372,21 +372,21 @@ public:
 
 REGISTER_KERNEL_BUILDER(
         Name("MexInputGrad")
-                .Device(DEVICE_CPU)
+                .Device(DEVICE_GPU)
                 .TypeConstraint<float>("T"),
-        MEXGradInputKernelCPU<float>);
+        MEXGradInputKernelGPU<float>);
 REGISTER_KERNEL_BUILDER(
         Name("MexInputGrad")
-                .Device(DEVICE_CPU)
+                .Device(DEVICE_GPU)
                 .TypeConstraint<double>("T"),
-        MEXGradInputKernelCPU<double>);
+        MEXGradInputKernelGPU<double>);
 REGISTER_KERNEL_BUILDER(
         Name("MexOffsetsGrad")
-                .Device(DEVICE_CPU)
+                .Device(DEVICE_GPU)
                 .TypeConstraint<float>("T"),
-        MEXGradOffsetsKernelCPU<float>);
+        MEXGradOffsetsKernelGPU<float>);
 REGISTER_KERNEL_BUILDER(
         Name("MexOffsetsGrad")
-                .Device(DEVICE_CPU)
+                .Device(DEVICE_GPU)
                 .TypeConstraint<double>("T"),
-        MEXGradOffsetsKernelCPU<double>);
+        MEXGradOffsetsKernelGPU<double>);

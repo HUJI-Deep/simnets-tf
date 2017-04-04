@@ -916,4 +916,53 @@ Dtype mex_backward_epsilon_with_normalized_offsets(typename vec<Dtype>::vec2 top
         return Dtype(0.5) * sim_l2_backward_bottom<Dtype, LOGSPACE_WEIGHT>(p, err, data, 0);
     }
 
+template <typename Dtype, bool REVERSE>
+inline
+void split_patches_cpu(const int N, const int Dim,
+                       const int W, const int H, const int C,
+                       const int W_Gs, const int H_Gs, const int C_Gs,
+                       const int W_Step, const int H_Step, const int C_Step,
+                       typename std::conditional<REVERSE, Dtype*, const Dtype*>::type in,
+                       Dtype* out, const bool use_unshared_regions_) {
+    const int step_out = C_Step * H_Step * W_Step;
+    const int group_step_w = !use_unshared_regions_ ? W_Step : 1;
+    const int group_step_h = !use_unshared_regions_ ? H_Step : 1;
+    const int group_step_c = !use_unshared_regions_ ? C_Step : 1;
+    const int region_step_w = !use_unshared_regions_ ? 1 : W_Gs;
+    const int region_step_h = !use_unshared_regions_ ? 1 : H_Gs;
+    const int region_step_c = !use_unshared_regions_ ? 1 : C_Gs;
+    Dtype* in_unconst = NULL;
+    if (REVERSE) {
+        in_unconst = (Dtype*)in;
+    }
+    for (int w_g = 0; w_g < W_Gs; ++w_g) {
+        for (int h_g = 0; h_g < H_Gs; ++h_g) {
+            for (int c_g = 0; c_g < C_Gs; ++c_g) {
+                Dtype* o = out + ((c_g * H_Gs + h_g) * W_Gs + w_g) * step_out * Dim;
+                const int group_addr = (c_g * group_step_c * H + h_g * group_step_h) * W + w_g * group_step_w;
+                for (int l = 0; l < C_Step; ++l) {
+                    for (int j = 0; j < H_Step; ++j) {
+                        for (int i = 0; i < W_Step; ++i) {
+                            const int base_addr_out = (l * H_Step + j) * W_Step + i;
+                            const int base_addr_in  = group_addr + (l * region_step_c * H + j * region_step_h) * W  + i * region_step_w;
+                            if (w_g * group_step_w + i * region_step_w >= W ||
+                                h_g * group_step_h + j * region_step_h >= H ||
+                                c_g * group_step_c + l * region_step_c >= C) {
+                                continue;
+                            }
+                            for (int k = 0; k < Dim; ++k) {
+                                if (!REVERSE) {
+                                    o[base_addr_out + k * step_out] = in[base_addr_in + k * N];
+                                } else {
+                                    in_unconst[base_addr_in + k * N] = o[base_addr_out + k * step_out];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 #endif

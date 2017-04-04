@@ -29,6 +29,13 @@ const int GGEMM_CUDA_NUM_THREADS = 512;
        i < (n); \
        i += blockDim.x * gridDim.x)
 
+#define CUDA_CHECK(condition) \
+  /* Code block avoids redefinition of cudaError_t error */ \
+  do { \
+    cudaError_t error = condition;\
+  } while (0)
+
+#define CUDA_POST_KERNEL_CHECK CUDA_CHECK(cudaPeekAtLastError())
 // CUDA: number of blocks for threads.
 inline int GGEMM_GET_BLOCKS(const int N) {
     return (N + GGEMM_CUDA_NUM_THREADS - 1) / GGEMM_CUDA_NUM_THREADS;
@@ -648,6 +655,72 @@ void ggemm_readc_gpu(const int M, const int N, const int K,
             <<<grid_dims, block_dims, 0, stream>>>
                                          (A_maps, B_maps, Cin_maps, Cinout_maps, C_maps, Cinit, extra_params, batch_size,
                                                  A_batch_stride, B_batch_stride, C_batch_stride);
+}
+
+template <typename Dtype, bool REVERSE>
+__global__ void split_patches_kernel(const int num_kernels, const int N, const int Dim,
+                                     const int W, const int H, const int C,
+                                     const int W_Gs, const int H_Gs, const int C_Gs,
+                                     const int W_Step, const int H_Step, const int C_Step,
+                                     typename std::conditional<REVERSE, Dtype*, const Dtype*>::type in,
+                                     Dtype* out, const bool use_unshared_regions_) {
+    const int step_out = C_Step * H_Step * W_Step;
+    const int group_step_w = !use_unshared_regions_ ? W_Step : 1;
+    const int group_step_h = !use_unshared_regions_ ? H_Step : 1;
+    const int group_step_c = !use_unshared_regions_ ? C_Step : 1;
+    const int region_step_w = !use_unshared_regions_ ? 1 : W_Gs;
+    const int region_step_h = !use_unshared_regions_ ? 1 : H_Gs;
+    const int region_step_c = !use_unshared_regions_ ? 1 : C_Gs;
+    Dtype* in_unconst = NULL;
+    if (REVERSE) {
+        in_unconst = (Dtype*)in;
+    }
+    CUDA_KERNEL_LOOP(index, num_kernels) {
+        const int i = index % W_Step;
+        const int i_index = index / W_Step;
+        const int j = i_index % H_Step;
+        const int j_index = i_index / H_Step;
+        const int l = j_index % C_Step;
+        const int l_index = j_index / C_Step;
+        const int w_g = l_index % W_Gs;
+        const int w_index = l_index / W_Gs;
+        const int h_g = w_index % H_Gs;
+        const int h_index = w_index / H_Gs;
+        const int c_g = h_index;
+
+        // "inner loop"
+        Dtype* o = out + ((c_g * H_Gs + h_g) * W_Gs + w_g) * step_out * Dim;
+        const int group_addr = (c_g * group_step_c * H + h_g * group_step_h) * W + w_g * group_step_w;
+        const int base_addr_out = (l * H_Step + j) * W_Step + i;
+        const int base_addr_in  = group_addr + (l * region_step_c * H + j * region_step_h) * W  + i * region_step_w;
+        if (w_g * group_step_w + i * region_step_w < W &&
+            h_g * group_step_h + j * region_step_h < H &&
+            c_g * group_step_c + l * region_step_c < C) {
+            for (int k = 0; k < Dim; ++k) {
+                if (!REVERSE) {
+                    o[base_addr_out + k * step_out] = in[base_addr_in + k * N];
+                } else {
+                    in_unconst[base_addr_in + k * N] = o[base_addr_out + k * step_out];
+                }
+            }
+        }
+    }
+}
+
+
+template <typename Dtype, bool REVERSE>
+inline
+void split_patches_gpu(const int N, const int Dim,
+                       const int W, const int H, const int C,
+                       const int W_Gs, const int H_Gs, const int C_Gs,
+                       const int W_Step, const int H_Step, const int C_Step,
+                       typename std::conditional<REVERSE, Dtype*, const Dtype*>::type in,
+                       Dtype* out, const bool use_unshared_regions) {
+    const int num_kernels = W_Step * H_Step * C_Step * W_Gs * H_Gs * C_Gs;
+    // NOLINT_NEXT_LINE(whitespace/operators)
+    split_patches_kernel<Dtype, REVERSE><<<GGEMM_GET_BLOCKS(num_kernels), GGEMM_CUDA_NUM_THREADS>>>(
+            num_kernels, N, Dim, W, H, C, W_Gs, H_Gs, C_Gs, W_Step, H_Step, C_Step, in, out, use_unshared_regions);
+    CUDA_POST_KERNEL_CHECK;
 }
 
 #endif

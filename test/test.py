@@ -257,6 +257,7 @@ class MexTests(tf.test.TestCase):
                     args = (images, offsets)
                     kwargs = dict(strides=tst['strides'],
                                   padding=tst['padding'], num_instances=tst['num_instances'],
+                                  softmax_mode=tst['softmax_mode'],
                                   use_unshared_regions=tst['use_unshared_regions'],
                                   shared_offset_region=tst['shared_offset_region'],
                                   unshared_offset_region=tst['unshared_offset_region'])
@@ -290,6 +291,7 @@ class MexTests(tf.test.TestCase):
                     args = (images, offsets)
                     kwargs = dict(strides=tst['strides'],
                                   padding=tst['padding'], num_instances=tst['num_instances'],
+                                  softmax_mode=tst['softmax_mode'],
                                   use_unshared_regions=tst['use_unshared_regions'],
                                   shared_offset_region=tst['shared_offset_region'],
                                   unshared_offset_region=tst['unshared_offset_region'])
@@ -310,6 +312,7 @@ class MexTests(tf.test.TestCase):
             'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[s1,s2,s3] for s1 in [1] for s2 in [1,3] for s3 in [3]],
             'padding': [[0,1,0]],
+            'softmax_mode': [True],
             'use_unshared_regions': [False],
             'shared_offset_region': [[2], [3]],
             'unshared_offset_region': [[1]]}
@@ -324,6 +327,7 @@ class MexTests(tf.test.TestCase):
             'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[s1,s2,s3] for s1 in [1] for s2 in [1,3] for s3 in [3]],
             'padding': [[0,1,0]],
+            'softmax_mode': [True],
             'use_unshared_regions': [True],
             'shared_offset_region': [[2]],
             'unshared_offset_region': [[1,5,4], [2]]}
@@ -335,9 +339,10 @@ class MexTests(tf.test.TestCase):
             'im_dims': [(2,3,12,13)],
             'dtype': [np.float64],
             'num_instances': [2],
-            'device': ['/cpu:0', '/gpu:0'] ,
+            'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[3,3,1]],
             'padding': [[0,1,0]],
+            'softmax_mode': [True],
             'use_unshared_regions': [True, False],
             'shared_offset_region': [[1,5,4], [2]],
             'unshared_offset_region': [[1,5,4], [2]]}
@@ -352,6 +357,7 @@ class MexTests(tf.test.TestCase):
             'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[3,3,1]],
             'padding': [[0,1,0]],
+            'softmax_mode': [True],
             'use_unshared_regions': [True, False],
             'shared_offset_region': [[1,5,4], [2], [-1]],
             'unshared_offset_region': [[1,5,4], [2]]}

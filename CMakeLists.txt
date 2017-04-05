@@ -65,5 +65,9 @@ add_custom_target(test_simnet_ops
         COMMAND cd $<TARGET_FILE_DIR:simnet_ops>
         COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/test.py)
 
+install(DIRECTORY python/simnets DESTINATION ".")
+install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>
+        DESTINATION "simnets/ops")
+
 set_target_properties(simnet_ops PROPERTIES PREFIX "")
 target_include_directories(simnet_ops PUBLIC ${TF_INCLUDES})

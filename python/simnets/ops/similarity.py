@@ -6,6 +6,7 @@ _this_path = _os.path.split(__file__)[0]
 _so = _tf.load_op_library(_os.path.join(_this_path, 'simnet_ops.so'))
 
 _similarity = _so.similarity
+_similarity_ref = _so.similarity_ref
 _similarity_input_grad = _so.similarity_input_grad
 _similarity_parameters_grad = _so.similarity_parameters_grad
 

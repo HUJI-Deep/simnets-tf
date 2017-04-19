@@ -61,9 +61,9 @@ else()
                                   src/mex_grad_kernel_cpu.cpp)
 endif()
 
-add_custom_target(test_simnet_ops
-        COMMAND cd $<TARGET_FILE_DIR:simnet_ops>
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/test.py)
+#add_custom_target(test_simnet_ops
+#        COMMAND cd ${CMAKE_INSTALL_PREFIX}
+#        COMMAND ${PYTHON_EXECUTABLE} -m unittest simnets.test)
 
 install(DIRECTORY python/simnets DESTINATION ".")
 install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>

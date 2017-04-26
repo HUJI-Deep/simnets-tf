@@ -41,12 +41,13 @@ def main():
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    model.add(Conv2D(32, kernel_size=(3, 3),
-                     activation='relu',
-                     input_shape=input_shape))
+    #model.add(Conv2D(32, kernel_size=(3, 3),
+    #                 activation='relu',
+    #                 input_shape=input_shape))
     #model.add(Conv2D(64, (3, 3), activation='relu'))
-    model.add(sk.Similarity(64, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L1'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(sk.Similarity(32, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L2', input_shape=input_shape))
+    model.add(sk.Similarity(64, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L2'))
+    model.add(MaxPooling2D(pool_size=(1, 1)))
     model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
@@ -54,7 +55,7 @@ def main():
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(loss=keras.losses.categorical_crossentropy,
-                  optimizer=keras.optimizers.Adadelta(),
+                  optimizer=keras.optimizers.Adam(lr=0.001),
                   metrics=['accuracy'])
 
     model.fit(x_train, y_train,

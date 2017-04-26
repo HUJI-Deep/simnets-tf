@@ -34,6 +34,7 @@ class Similarity(Layer):
 
     def call(self, x):
         self.op = similarity(x, self.templates, tf.abs(self.sweights), similarity_function=self.similarity_function,
+                             ksize=self.ksize,
                              strides=self.strides, padding=self.padding,
                              normalization_term=self.normalization_term,
                              normalization_term_fudge=self.normalization_term_fudge,

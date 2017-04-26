@@ -7,6 +7,7 @@
 
 
 #include <cmath>
+#include "tensorflow/core/framework/shape_inference.h"
 
 namespace simnets_tf {
 
@@ -104,6 +105,26 @@ namespace simnets_tf {
         } else {
             return static_cast<int>(std::ceil(static_cast<float>(image_size + 2 * pad_size - patch_size) / stride)) + 1;
         }
+    }
+
+    inline
+    tensorflow::Status GetSimnetsOutputSizeFromDims(
+            tensorflow::shape_inference::InferenceContext* c,
+            tensorflow::shape_inference::DimensionHandle input_size,
+            tensorflow::shape_inference::DimensionOrConstant filter_size, tensorflow::int64 stride,
+            int padding, bool round_down, tensorflow::shape_inference::DimensionHandle* output_size) {
+        if (stride <= 0) {
+            return tensorflow::errors::InvalidArgument("Stride must be > 0, but got ", stride);
+        }
+
+        TF_RETURN_IF_ERROR(c->Add(input_size, 2 * padding, output_size));
+        TF_RETURN_IF_ERROR(c->Subtract(*output_size, filter_size, output_size));
+        if (!round_down)
+            TF_RETURN_IF_ERROR(c->Add(*output_size, stride - 1, output_size));
+        TF_RETURN_IF_ERROR(c->Divide(*output_size, stride, false, output_size));
+        TF_RETURN_IF_ERROR(c->Add(*output_size, 1, output_size));
+
+        return tensorflow::Status::OK();
     }
 }  // namespace simnets_tf
 

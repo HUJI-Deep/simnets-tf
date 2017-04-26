@@ -22,14 +22,14 @@ extern "C" DLL_PUBLIC int get_mex_offsets_nregions(int, const int* input_dim,
     mdd.shared_offset_region_.assign(shared_offset_region, shared_offset_region + n_shared_offset_region);
     mdd.unshared_offset_region_.assign(unshared_offset_region, unshared_offset_region + n_unshared_offset_region);
 
-    if (n_blocks == 1) {
-        mdd.block_h_ = mdd.block_w_ = blocks[0];
-        mdd.block_c_ = input_c;
-    } else {
-        mdd.block_c_ = blocks[0];
-        mdd.block_h_ = blocks[1];
-        mdd.block_w_ = blocks[2];
+    if (n_blocks != 3) {
+        return -1;
     }
+    mdd.blocks_.assign(blocks, blocks + n_blocks);
+    //mdd.block_c_ = blocks[0];
+    //mdd.block_h_ = blocks[1];
+    //mdd.block_w_ = blocks[2];
+
 
     mdd.batch_ = 1;
     mdd.channels_ = input_c;

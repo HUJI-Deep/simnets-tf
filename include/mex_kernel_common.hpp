@@ -8,7 +8,7 @@
 
 struct MexDimensionsData
 {
-    std::vector<int> padding_, strides_, shared_offset_region_, unshared_offset_region_;
+    std::vector<int> padding_, strides_, blocks_, shared_offset_region_, unshared_offset_region_;
     void CalculateDimensionsWithConext(tensorflow::OpKernelContext* context);
     void CalculateDimensions();
     int block_c_, block_h_, block_w_;

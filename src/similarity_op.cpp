@@ -1,26 +1,9 @@
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
+#include "im2col.hpp"
 
 using namespace tensorflow;
-
-Status GetSimilarityOutputSizeFromDims(
-        shape_inference::InferenceContext* c,
-        shape_inference::DimensionHandle input_size,
-        shape_inference::DimensionOrConstant filter_size, int64 stride,
-        int padding, shape_inference::DimensionHandle* output_size) {
-    if (stride <= 0) {
-        return errors::InvalidArgument("Stride must be > 0, but got ", stride);
-    }
-
-    // See also the parallel implementation in GetWindowedOutputSizeVerbose.
-    TF_RETURN_IF_ERROR(c->Add(input_size, 2 * padding, output_size));
-    TF_RETURN_IF_ERROR(c->Subtract(*output_size, filter_size, output_size));
-    TF_RETURN_IF_ERROR(c->Divide(*output_size, stride, false, output_size));
-    TF_RETURN_IF_ERROR(c->Add(*output_size, 1, output_size));
-
-    return Status::OK();
-}
 
 Status SimilarityShape(shape_inference::InferenceContext* c) {
     using namespace tensorflow::shape_inference;
@@ -57,10 +40,10 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
             c->Merge(c->Dim(input_shape, 1), c->Dim(template_shape, 1), &unused));
 
     DimensionHandle output_rows, output_cols;
-    TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
-            c, in_rows_dim, filter_rows_dim, stride_rows, padding[0], &output_rows));
-    TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
-            c, in_cols_dim, filter_cols_dim, stride_cols, padding[1], &output_cols));
+    TF_RETURN_IF_ERROR(simnets_tf::GetSimnetsOutputSizeFromDims(
+            c, in_rows_dim, filter_rows_dim, stride_rows, padding[0], true, &output_rows));
+    TF_RETURN_IF_ERROR(simnets_tf::GetSimnetsOutputSizeFromDims(
+            c, in_cols_dim, filter_cols_dim, stride_cols, padding[1], true, &output_cols));
 
     ShapeHandle output_shape;
     output_shape = c->MakeShape({batch_size_dim, output_depth_dim, output_rows, output_cols});

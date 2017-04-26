@@ -72,10 +72,10 @@ class SimilarityTests(tf.test.TestCase):
         self._run_ref_test(tests_dict)
 
 
-    def test_gradient_input(self):
+    def test_gradient_input_l2(self):
         with self.test_session():
-            #images = np.random.normal(size=(1,1,7,10)).astype(np.float32)
-            images = np.ones((1,1,30,30), np.float64)
+            images = np.random.normal(size=(1,1,30,30)).astype(np.float64)
+            #images = np.ones((1,1,30,30), np.float64)
             images = tf.constant(images)
 
             #weights = np.absolute(np.random.normal(size=(1,1,3,3)).astype(np.float32))
@@ -87,11 +87,30 @@ class SimilarityTests(tf.test.TestCase):
             templates = tf.constant(templates)
 
             with tf.device('/gpu:0'):
-                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME')
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME', similarity_function='L2')
                 computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
             self.assertNDArrayNear(numeric, computed, 1e-4)
 
-    def test_gradient_templates(self):
+    def test_gradient_input_l1(self):
+        with self.test_session():
+            images = np.random.normal(size=(1,1,30,30)).astype(np.float64)
+            #images = np.ones((1,1,100,100), np.float64)
+            images = tf.constant(images)
+
+            #weights = np.absolute(np.random.normal(size=(1,1,3,3)).astype(np.float32))
+            weights = np.ones((1,1,3,3), np.float64)
+            weights = tf.constant(weights)
+
+            #templates = np.random.normal(size=(1,1,3,3)).astype(np.float32)
+            templates = np.zeros((1,1,3,3), np.float64)
+            templates = tf.constant(templates)
+
+            with tf.device('/gpu:0'):
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME', similarity_function='L1')
+                computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
+            self.assertNDArrayNear(numeric, computed, 1e-2)
+
+    def test_gradient_templates_l2(self):
         with self.test_session():
             #images = np.random.normal(size=(1,1,7,10)).astype(np.float32)
             images = np.ones((2,3,40,40), np.float64)
@@ -106,11 +125,32 @@ class SimilarityTests(tf.test.TestCase):
             templates = tf.constant(templates_np)
 
             with tf.device('/gpu:0'):
-                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,4,4,1], padding='SAME')
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,4,4,1], padding='SAME',
+                                 similarity_function='L2')
                 computed, numeric = tf.test.compute_gradient(templates, templates.get_shape().as_list(), tf.abs(sim), [2,1,10,10], delta=1e-2)
             self.assertNDArrayNear(numeric, computed, 1e-4)
 
-    def test_gradient_weights(self):
+    def test_gradient_templates_l1(self):
+        with self.test_session():
+            #images = np.random.normal(size=(1,1,7,10)).astype(np.float32)
+            images = np.ones((2,3,40,40), np.float64)
+            images = tf.constant(images)
+
+            #weights = np.absolute(np.random.normal(size=(1,1,3,3)).astype(np.float32))
+            weights = np.ones((1,3,3,3), np.float64)
+            weights = tf.constant(weights)
+
+            #templates = np.random.normal(size=(1,1,3,3)).astype(np.float32)
+            templates_np = np.zeros((1,3,3,3), np.float64)
+            templates = tf.constant(templates_np)
+
+            with tf.device('/gpu:0'):
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,4,4,1], padding='SAME',
+                                 similarity_function='L1')
+                computed, numeric = tf.test.compute_gradient(templates, templates.get_shape().as_list(), tf.abs(sim), [2,1,10,10], delta=1e-2)
+            self.assertNDArrayNear(numeric, computed, 1e-4)
+
+    def test_gradient_weights_l2(self):
         with self.test_session():
             #images = np.random.normal(size=(1,1,7,10)).astype(np.float32)
             images = np.ones((1,1,30,30), np.float64)
@@ -125,7 +165,28 @@ class SimilarityTests(tf.test.TestCase):
             templates = tf.constant(templates)
 
             with tf.device('/cpu:0'):
-                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME')
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME',
+                                 similarity_function='L2')
+            computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
+            self.assertNDArrayNear(numeric, computed, 1e-4)
+
+    def test_gradient_weights_l1(self):
+        with self.test_session():
+            #images = np.random.normal(size=(1,1,7,10)).astype(np.float32)
+            images = np.ones((1,1,30,30), np.float64)
+            images = tf.constant(images)
+
+            #weights = np.absolute(np.random.normal(size=(1,1,3,3)).astype(np.float32))
+            weights = np.ones((1,1,3,3), np.float64)
+            weights = tf.constant(weights)
+
+            #templates = np.random.normal(size=(1,1,3,3)).astype(np.float32)
+            templates = np.zeros((1,1,3,3), np.float64)
+            templates = tf.constant(templates)
+
+            with tf.device('/cpu:0'):
+                sim = similarity(images, templates, weights, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME',
+                                 similarity_function='L1')
             computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
             self.assertNDArrayNear(numeric, computed, 1e-4)
 

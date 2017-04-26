@@ -61,9 +61,9 @@ else()
                                   src/mex_grad_kernel_cpu.cpp)
 endif()
 
-#add_custom_target(test_simnet_ops
-#        COMMAND cd ${CMAKE_INSTALL_PREFIX}
-#        COMMAND ${PYTHON_EXECUTABLE} -m unittest simnets.test)
+add_custom_target(test_simnet_ops
+        ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_INSTALL_PREFIX} TF_CPP_MIN_LOG_LEVEL=3 ${PYTHON_EXECUTABLE} -m unittest simnets.test
+        DEPENDS clion_install)
 
 install(DIRECTORY python/simnets DESTINATION ".")
 install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>
@@ -71,3 +71,6 @@ install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>
 
 set_target_properties(simnet_ops PROPERTIES PREFIX "")
 target_include_directories(simnet_ops PUBLIC ${TF_INCLUDES})
+
+add_custom_target(clion_install
+        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target install)

@@ -22,7 +22,7 @@ public:
 protected:
     std::vector<int> ksize_;
     std::vector<int> stride_;
-    tensorflow::Padding padding_;
+    std::vector<int> padding_;
     bool normalization_term_;
     float normalization_term_fudge_;
     bool ignore_nan_input_;
@@ -71,8 +71,14 @@ inline
 SimilarityKernelCommon::SimilarityKernelCommon(tensorflow::OpKernelConstruction *context)
         : tensorflow::OpKernel(context) {
     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
+    OP_REQUIRES(context, padding_.size() == 2,
+                tensorflow::errors::InvalidArgument("padding must be a list with two elements"));
     OP_REQUIRES_OK(context, context->GetAttr("ksize", &ksize_));
+    OP_REQUIRES(context, ksize_.size() == 2,
+                tensorflow::errors::InvalidArgument("ksize must be a list with two elements"));
     OP_REQUIRES_OK(context, context->GetAttr("strides", &stride_));
+    OP_REQUIRES(context, stride_.size() == 2,
+                tensorflow::errors::InvalidArgument("stride must be a list with two elements"));
     std::string similarity_func_str;
     OP_REQUIRES_OK(context, context->GetAttr("similarity_function", &similarity_func_str));
     if (similarity_func_str == "L1") {
@@ -109,27 +115,19 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     channels_ = input_t.dimension(C_DIM);
 
 
-    block_h_ = this->ksize_[1];
-    block_w_ = this->ksize_[2];
+    block_h_ = this->ksize_[0];
+    block_w_ = this->ksize_[1];
     block_c_ = channels_;
 
-    stride_h_ = this->stride_[1];
-    stride_w_ = this->stride_[2];
+    stride_h_ = this->stride_[0];
+    stride_w_ = this->stride_[1];
     stride_c_ = channels_;
 
-    if (padding_ == tensorflow::VALID)
-    {
-        pad_h_ = pad_w_ = 0;
-    } else {
-        pad_h_ = ksize_[1] / 2;
-        pad_w_ = ksize_[2] / 2;
-    }
+    pad_h_ = padding_[0];
+    pad_w_ = padding_[1];
 
-    out_h_ = simnets_tf::dimension_out_size(height_, pad_h_, ksize_[1], stride_[1], true);
-    out_w_ = simnets_tf::dimension_out_size(width_, pad_w_, ksize_[2], stride_[2], true);
-
-    //GetWindowedOutputSize(height_, block_h_, stride_h_, this->padding_, &out_h_, &pad_h_);
-    //GetWindowedOutputSize(width_,  block_w_, stride_w_, this->padding_, &out_w_, &pad_w_);
+    out_h_ = simnets_tf::dimension_out_size(height_, pad_h_, ksize_[0], stride_[0], true);
+    out_w_ = simnets_tf::dimension_out_size(width_, pad_w_, ksize_[1], stride_[1], true);
 
     out_c_ = num_instances_;
     pad_c_ = 0;

@@ -45,8 +45,8 @@ def main():
     #                 activation='relu',
     #                 input_shape=input_shape))
     #model.add(Conv2D(64, (3, 3), activation='relu'))
-    model.add(sk.Similarity(32, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L2', input_shape=input_shape))
-    model.add(sk.Similarity(64, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L2'))
+    model.add(sk.Similarity(32, ksize=[3, 3], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
+    model.add(sk.Similarity(64, ksize=[3, 3], strides=[1, 1], similarity_function='L2'))
     model.add(MaxPooling2D(pool_size=(1, 1)))
     model.add(Dropout(0.25))
     model.add(Flatten())

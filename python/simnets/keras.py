@@ -6,7 +6,7 @@ import numpy as np
 
 class Similarity(Layer):
 
-    def __init__(self, num_instances, similarity_function='L2', strides=[1,2,2,1], ksize=[1,3,3,1], padding='SAME',
+    def __init__(self, num_instances, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
                  normalization_term=False, normalization_term_fudge=0.001, ignore_nan_input=False,
                  out_of_bounds_value=0, **kwargs):
         super(Similarity, self).__init__(**kwargs)
@@ -14,7 +14,10 @@ class Similarity(Layer):
         self.similarity_function = similarity_function
         self.strides = strides
         self.ksize = ksize
-        self.padding = padding
+        if isinstance(padding, str):
+            self.padding = [0, 0] if padding == 'VALID' else [e//2 for e in ksize]
+        else:
+            self.padding = padding
         self.normalization_term = normalization_term
         self.normalization_term_fudge = normalization_term_fudge
         self.ignore_nan_input = ignore_nan_input
@@ -23,10 +26,10 @@ class Similarity(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.sweights = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[1], self.ksize[2]),
+        self.sweights = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
                                         trainable=True,
                                         initializer='uniform')
-        self.templates = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[1], self.ksize[2]),
+        self.templates = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
                                          initializer='uniform',
                                          trainable=True)
 

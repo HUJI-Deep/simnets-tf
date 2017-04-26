@@ -33,15 +33,17 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
     TF_RETURN_IF_ERROR(c->GetAttr("strides", &strides));
     std::vector<int32> ksize;
     TF_RETURN_IF_ERROR(c->GetAttr("ksize", &ksize));
+    std::vector<int32> padding;
+    TF_RETURN_IF_ERROR(c->GetAttr("padding", &padding));
 
-    if (strides.size() != 4) {
+    if (strides.size() != 2) {
         return errors::InvalidArgument(
-                "Similarity requires the stride attribute to contain 4 values, but got: ",
+                "Similarity requires the stride attribute to contain 2 values, but got: ",
                 strides.size());
     }
 
-    int32 stride_rows = strides[1];
-    int32 stride_cols = strides[2];
+    int32 stride_rows = strides[0];
+    int32 stride_cols = strides[1];
 
     DimensionHandle batch_size_dim = c->Dim(input_shape, 0);
     DimensionHandle in_rows_dim = c->Dim(input_shape, 2);
@@ -54,23 +56,11 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
     TF_RETURN_IF_ERROR(
             c->Merge(c->Dim(input_shape, 1), c->Dim(template_shape, 1), &unused));
 
-    Padding padding;
-    TF_RETURN_IF_ERROR(c->GetAttr("padding", &padding));
-
-    int pad_h, pad_w;
-    if (padding == tensorflow::VALID)
-    {
-        pad_h = pad_w = 0;
-    } else {
-        pad_h = ksize[1] / 2;
-        pad_w = ksize[2] / 2;
-    }
-
     DimensionHandle output_rows, output_cols;
     TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
-            c, in_rows_dim, filter_rows_dim, stride_rows, pad_h, &output_rows));
+            c, in_rows_dim, filter_rows_dim, stride_rows, padding[0], &output_rows));
     TF_RETURN_IF_ERROR(GetSimilarityOutputSizeFromDims(
-            c, in_cols_dim, filter_cols_dim, stride_cols, pad_w, &output_cols));
+            c, in_cols_dim, filter_cols_dim, stride_cols, padding[1], &output_cols));
 
     ShapeHandle output_shape;
     output_shape = c->MakeShape({batch_size_dim, output_depth_dim, output_rows, output_cols});
@@ -92,9 +82,9 @@ REGISTER_OP("Similarity")
         .Output("output: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [1,2,2,1]")
-        .Attr("strides: list(int) = [1,2,2,1]")
-        .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
+        .Attr("ksize: list(int) = [3,3]")
+        .Attr("strides: list(int) = [2,2]")
+        .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")
@@ -119,9 +109,9 @@ REGISTER_OP("SimilarityInputGrad")
         .Output("output: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [1,2,2,1]")
-        .Attr("strides: list(int) = [1,2,2,1]")
-        .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
+        .Attr("ksize: list(int) = [3,3]")
+        .Attr("strides: list(int) = [2,2]")
+        .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")
@@ -137,9 +127,9 @@ REGISTER_OP("SimilarityParametersGrad")
         .Output("weights_grad: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [1,2,2,1]")
-        .Attr("strides: list(int) = [1,2,2,1]")
-        .Attr("padding: {'SAME', 'VALID'} = 'SAME'")
+        .Attr("ksize: list(int) = [3,3]")
+        .Attr("strides: list(int) = [2,2]")
+        .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
         .Attr("normalization_term_fudge: float = 0.001")
         .Attr("ignore_nan_input: bool = false")

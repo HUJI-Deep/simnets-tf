@@ -15,6 +15,8 @@ class Similarity(Layer):
         self.strides = strides
         self.ksize = ksize
         if isinstance(padding, str):
+            if padding not in ['SAME', 'VALID']:
+                raise ValueError('Padding must be one of SAME, VALID (or a list of ints)')
             self.padding = [0, 0] if padding == 'VALID' else [e//2 for e in ksize]
         else:
             self.padding = padding

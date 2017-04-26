@@ -1,14 +1,16 @@
+import sys
+sys.path.append(r'/home/elhanani/study/huji-deep/install')
 import simnets.keras as sk
-from tensorflow.contrib.keras.python import keras
-from tensorflow.contrib.keras.python.keras.datasets import mnist
-from tensorflow.contrib.keras.python.keras.models import Sequential
-from tensorflow.contrib.keras.python.keras.layers import Dense, Dropout, Flatten
-from tensorflow.contrib.keras.python.keras.layers import Conv2D, MaxPooling2D
-from tensorflow.contrib.keras.python.keras import backend as K
+import keras
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras import backend as K
 
 batch_size = 128
 num_classes = 10
-epochs = 12
+epochs = 2
 
 def main():
     # input image dimensions
@@ -24,7 +26,7 @@ def main():
     else:
         x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
         x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
-        input_shape = (img_rows, img_cols, 1)
+        input_shape = (1, img_rows, img_cols)
 
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
@@ -42,8 +44,8 @@ def main():
     model.add(Conv2D(32, kernel_size=(3, 3),
                      activation='relu',
                      input_shape=input_shape))
-    # model.add(Conv2D(64, (3, 3), activation='relu'))
-    model.add(sk.Similarity(64))
+    #model.add(Conv2D(64, (3, 3), activation='relu'))
+    model.add(sk.Similarity(64, ksize=[1,3,3,1], strides=[1,1,1,1], similarity_function='L1'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Dropout(0.25))
     model.add(Flatten())
@@ -64,5 +66,5 @@ def main():
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
 
-    if __name__ == '__main__':
-        main()
+if __name__ == '__main__':
+    main()

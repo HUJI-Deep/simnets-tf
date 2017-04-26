@@ -1,8 +1,6 @@
-import keras.backend as K
 import tensorflow as tf
 from keras.engine.topology import Layer
-from .ops import similarity
-import numpy as np
+from .ops import similarity as _similarity
 
 class Similarity(Layer):
 
@@ -38,7 +36,7 @@ class Similarity(Layer):
         super(Similarity, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, x):
-        self.op = similarity(x, self.templates, tf.abs(self.sweights), similarity_function=self.similarity_function,
+        self.op = _similarity(x, self.templates, tf.abs(self.sweights), similarity_function=self.similarity_function,
                              ksize=self.ksize,
                              strides=self.strides, padding=self.padding,
                              normalization_term=self.normalization_term,

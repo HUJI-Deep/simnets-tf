@@ -1,5 +1,5 @@
 import sys
-sys.path.append(r'/home/elhanani/study/huji-deep/install')
+sys.path.append(r'/home/elhanan/study/huji-deep/install')
 import simnets.keras as sk
 import keras
 from keras.datasets import mnist
@@ -8,7 +8,7 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
 
-batch_size = 128
+batch_size = 32
 num_classes = 10
 epochs = 2
 
@@ -41,21 +41,24 @@ def main():
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
     model = Sequential()
-    #model.add(Conv2D(32, kernel_size=(3, 3),
-    #                 activation='relu',
-    #                 input_shape=input_shape))
+    model.add(Conv2D(32, kernel_size=(3, 3),
+                     activation='relu',
+                     input_shape=input_shape))
     #model.add(Conv2D(64, (3, 3), activation='relu'))
-    model.add(sk.Similarity(32, ksize=[3, 3], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
+    #model.add(sk.Similarity(32, ksize=[3, 3], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
+    #model.add(sk.Similarity(64, ksize=[3, 3], strides=[1, 1], similarity_function='L2'))
+    #model.add(sk.Mex(32, blocks=[1, 3, 3], use_unshared_regions=False, input_shape=input_shape))
+    model.add(sk.Mex(64, blocks=[32, 3, 3], strides=[32, 3, 3]))
     model.add(sk.Similarity(64, ksize=[3, 3], strides=[1, 1], similarity_function='L2'))
-    model.add(MaxPooling2D(pool_size=(1, 1)))
-    model.add(Dropout(0.25))
+    #model.add(MaxPooling2D(pool_size=(2, 2)))
+    #model.add(Dropout(0.25))
     model.add(Flatten())
     model.add(Dense(128, activation='relu'))
-    model.add(Dropout(0.5))
+    #model.add(Dropout(0.5))
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(loss=keras.losses.categorical_crossentropy,
-                  optimizer=keras.optimizers.Adam(lr=0.001),
+                  optimizer=keras.optimizers.Adam(lr=0.0001),
                   metrics=['accuracy'])
 
     model.fit(x_train, y_train,

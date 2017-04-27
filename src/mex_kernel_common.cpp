@@ -95,15 +95,15 @@ void MexDimensionsData::CalculateDimensions() {
         }
 
         if (unshared_offsets_region_h_ < 0) {
-            unshared_offsets_region_h_ = height_out_;
+            unshared_offsets_region_h_ = 1;
         }
         unshared_offsets_region_h_ = std::min(unshared_offsets_region_h_, height_out_);
         if (unshared_offsets_region_w_ < 0) {
-            unshared_offsets_region_w_ = width_out_;
+            unshared_offsets_region_w_ = 1;
         }
         unshared_offsets_region_w_ = std::min(unshared_offsets_region_w_, width_out_);
         if (unshared_offsets_region_c_ < 0) {
-            unshared_offsets_region_c_ = channels_out_;
+            unshared_offsets_region_c_ = 1;
         }
         unshared_offsets_region_c_ = std::min(unshared_offsets_region_c_, channels_out_);
         offsets_h_ = unshared_offsets_region_h_;

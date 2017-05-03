@@ -1,10 +1,20 @@
+from __future__ import print_function
+from __future__ import division
+
 import tensorflow as tf
 import numpy as np
 import itertools
+import six
+import contextlib
 
 from ..ops.mex import mex, _mex_ref, _mex_dims_helper
 from ..ops.similarity import similarity, _similarity_ref
 class SimilarityTests(tf.test.TestCase):
+
+    if six.PY2:
+        @contextlib.contextmanager
+        def subTest(self, **kwargs):
+            yield
 
     def _run_ref_test(self, tests_dict):
         all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
@@ -199,6 +209,11 @@ class SimilarityTests(tf.test.TestCase):
 
 class MexTests(tf.test.TestCase):
 
+    if six.PY2:
+        @contextlib.contextmanager
+        def subTest(self, **kwargs):
+            yield
+
     def test_sanity(self):
         #images = np.zeros((1,1,9,9), np.float64)
         images = np.random.normal(size=(5,1,90,90)).astype(np.float64)
@@ -232,7 +247,7 @@ class MexTests(tf.test.TestCase):
                                                use_unshared_regions=tst['use_unshared_regions'],
                                                shared_offset_region=tst['shared_offset_region'],
                                                unshared_offset_region=tst['unshared_offset_region'])
-                    params_dim = (nregions, tst['num_instances'], *tst['blocks'])
+                    params_dim = (nregions, tst['num_instances']) + tuple(tst['blocks'])
                     offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
                     #offsets = np.ones(params_dim, tst['dtype'])
                     offsets = tf.constant(offsets)
@@ -266,7 +281,7 @@ class MexTests(tf.test.TestCase):
                                                use_unshared_regions=tst['use_unshared_regions'],
                                                shared_offset_region=tst['shared_offset_region'],
                                                unshared_offset_region=tst['unshared_offset_region'])
-                    params_dim = (nregions, tst['num_instances'], *tst['blocks'])
+                    params_dim = (nregions, tst['num_instances']) + tuple(tst['blocks'])
                     offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
                     #offsets = np.ones(params_dim, tst['dtype'])
                     offsets = tf.constant(offsets)

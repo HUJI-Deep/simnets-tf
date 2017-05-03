@@ -65,7 +65,14 @@ add_custom_target(test_simnet_ops
         ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_INSTALL_PREFIX} TF_CPP_MIN_LOG_LEVEL=3 ${PYTHON_EXECUTABLE} -m unittest simnets.test
         DEPENDS clion_install)
 
+add_custom_target(create_wheel
+        ${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/setup.py bdist_wheel
+        WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+        DEPENDS clion_install)
+
 install(DIRECTORY python/simnets DESTINATION ".")
+install(FILES python/setup.py README.md
+        DESTINATION ".")
 install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>
         DESTINATION "simnets/ops")
 

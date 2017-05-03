@@ -1,3 +1,7 @@
+from __future__ import print_function
+from __future__ import division
+from __future__ import absolute_import
+
 import tensorflow as tf
 from keras.engine.topology import Layer
 from .ops import similarity as _similarity
@@ -27,10 +31,12 @@ class Similarity(Layer):
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
-        self.sweights = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
+        self.sweights = self.add_weight(name='weights',
+                                        shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
                                         trainable=True,
                                         initializer='uniform')
-        self.templates = self.add_weight(shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
+        self.templates = self.add_weight(name='templates',
+                                         shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
                                          initializer='uniform',
                                          trainable=True)
 
@@ -76,7 +82,7 @@ class Mex(Layer):
                                     shared_offset_region=self.shared_offset_region,
                                     unshared_offset_region=self.unshared_offset_region)
 
-        self.offsets = self.add_weight(shape=(nregions, self.num_instances, *self.blocks),
+        self.offsets = self.add_weight(name='offsets', shape=(nregions, self.num_instances) + tuple(self.blocks),
                                        trainable=True,
                                        initializer='glorot_uniform')
 

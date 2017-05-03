@@ -1,3 +1,6 @@
+from __future__ import print_function
+from __future__ import division
+
 import tensorflow as _tf
 import ctypes as _ctypes
 
@@ -16,14 +19,19 @@ def _mex_dims_helper(input_dim, num_instances,
                     shared_offset_region=[-1], unshared_offset_region=[-1]):
     ctypes = _ctypes
 
-    def arr(l):
-        return ctypes.c_int(len(l)), (ctypes.c_int * len(l))(*l)
-    return _mex_helper.get_mex_offsets_nregions(*arr(input_dim),
-                                                *arr(padding), *arr(strides),
-                                                ctypes.c_int(num_instances), ctypes.c_int(blocks_round_down),
-                                                ctypes.c_int(use_unshared_regions),
-                                                *arr(blocks), *arr(shared_offset_region),
-                                                *arr(unshared_offset_region))
+    args = []
+    def add_array(l):
+        args.extend([ctypes.c_int(len(l)), (ctypes.c_int * len(l))(*l)])
+    add_array(input_dim)
+    add_array(padding)
+    add_array(strides)
+    args.extend([ctypes.c_int(num_instances), ctypes.c_int(blocks_round_down),
+                 ctypes.c_int(use_unshared_regions)])
+    add_array(blocks)
+    add_array(shared_offset_region)
+    add_array(unshared_offset_region)
+
+    return _mex_helper.get_mex_offsets_nregions(*args)
 mex = _so.mex
 _mex_input_grad = _so.mex_input_grad
 _mex_offsets_grad = _so.mex_offsets_grad

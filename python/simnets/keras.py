@@ -38,11 +38,11 @@ class Similarity(Layer):
 
     def call(self, x):
         self.op = _similarity(x, self.templates, tf.abs(self.sweights), similarity_function=self.similarity_function,
-                             ksize=self.ksize,
-                             strides=self.strides, padding=self.padding,
-                             normalization_term=self.normalization_term,
-                             normalization_term_fudge=self.normalization_term_fudge,
-                             ignore_nan_input=self.ignore_nan_input, out_of_bounds_value=self.out_of_bounds_value)
+                              ksize=self.ksize,
+                              strides=self.strides, padding=self.padding,
+                              normalization_term=self.normalization_term,
+                              normalization_term_fudge=self.normalization_term_fudge,
+                              ignore_nan_input=self.ignore_nan_input, out_of_bounds_value=self.out_of_bounds_value)
         return self.op
 
     def compute_output_shape(self, input_shape):
@@ -53,7 +53,7 @@ class Mex(Layer):
     def __init__(self, num_instances, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
                  epsilon=1.0, use_unshared_regions=True, shared_offset_region=[-1],
                  unshared_offset_region=[-1], softmax_mode=False, blocks_out_of_bounds_value=0.0,
-                 blocks_round_down=True, **kwargs):
+                 blocks_round_down=True, normalize_offsets=False, **kwargs):
         super(Mex, self).__init__(**kwargs)
         self.num_instances = num_instances
         self.padding = padding
@@ -66,6 +66,7 @@ class Mex(Layer):
         self.softmax_mode = softmax_mode
         self.blocks_out_of_bounds_value = blocks_out_of_bounds_value
         self.blocks_round_down = blocks_round_down
+        self.normalize_offsets = normalize_offsets
 
 
     def build(self, input_shape):
@@ -76,8 +77,15 @@ class Mex(Layer):
                                     unshared_offset_region=self.unshared_offset_region)
 
         self.offsets = self.add_weight(shape=(nregions, self.num_instances, *self.blocks),
-                                        trainable=True,
-                                        initializer='glorot_uniform')
+                                       trainable=True,
+                                       initializer='glorot_uniform')
+
+        if self.normalize_offsets:
+            with tf.name_scope('NormalizeOffsets'):
+                flattened = tf.reshape(self.offsets, [nregions, -1])
+                norm_terms = tf.reduce_logsumexp(flattened, axis=1, keep_dims=True)
+                flattened_normed = flattened / norm_terms # Broadcast
+                self.offsets = tf.reshape(flattened_normed, tf.shape(self.offsets))
 
         super(Mex, self).build(input_shape)  # Be sure to call this somewhere!
 

@@ -3,9 +3,14 @@ from __future__ import division
 from __future__ import absolute_import
 
 import tensorflow as tf
+import numpy as np
 from keras.engine.topology import Layer
+from keras import backend as K
+from keras.backend.tensorflow_backend import _initialize_variables
 from .ops import similarity as _similarity
 from .ops.mex import _mex_dims_helper, mex as _mex
+from .unsupervised import similarity_unsupervised_init as _similarity_unsupervised_init
+
 
 class Similarity(Layer):
 
@@ -27,7 +32,6 @@ class Similarity(Layer):
         self.normalization_term_fudge = normalization_term_fudge
         self.ignore_nan_input = ignore_nan_input
         self.out_of_bounds_value = out_of_bounds_value
-
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
@@ -54,6 +58,7 @@ class Similarity(Layer):
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
 
+
 class Mex(Layer):
 
     def __init__(self, num_instances, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
@@ -73,7 +78,6 @@ class Mex(Layer):
         self.blocks_out_of_bounds_value = blocks_out_of_bounds_value
         self.blocks_round_down = blocks_round_down
         self.normalize_offsets = normalize_offsets
-
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
@@ -104,3 +108,33 @@ class Mex(Layer):
 
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
+
+
+def perform_unsupervised_init(model, kind, layers=[], data=None, batch_size=None):
+    if not layers:
+        layers = [l for l in model.layers if isinstance(l, Similarity)]
+
+    if isinstance(data, np.ndarray):
+        if batch_size is None:
+            raise ValueError('data is nparray, so batch size must be given')
+
+        def data_gen():
+            for i in range(0, len(data), batch_size):
+                batch = data[i:i+batch_size,...]
+                yield batch
+    else:
+        data_gen = data
+
+    input_tensor = model.input
+    session = K.get_session()
+
+    for layer in layers:
+        u_init, u_op = _similarity_unsupervised_init(kind, layer.op, layer.weights[1], layer.weights[0])
+        _initialize_variables()
+        print('running unsupervised initialization for layer {}'.format(layer.name))
+        for idx, batch in enumerate(data_gen()):
+            fd = {input_tensor: batch}
+            if idx == 0:
+                session.run(u_init, feed_dict=fd)
+            session.run(u_op, feed_dict=fd)
+

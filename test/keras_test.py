@@ -1,74 +1,64 @@
 import sys
-sys.path.append(r'/home/elhanan/study/huji-deep/install')
-import simnets.keras as sk
-import keras
-from keras.datasets import mnist
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers import Conv2D, MaxPooling2D
-from keras import backend as K
+sys.path.append(r'/home/elhanani/study/huji-deep/install')
+import tensorflow as tf
+print(tf.__version__)
+from tensorflow.examples.tutorials.mnist import input_data
+from simnets import similarity
+from simnets.unsupervised import similarity_unsupervised_init
+import matplotlib.pyplot as plt
 
-batch_size = 32
-num_classes = 10
-epochs = 2
+mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+sess = tf.InteractiveSession()
 
-def main():
-    # input image dimensions
-    img_rows, img_cols = 28, 28
+x = tf.placeholder(tf.float32, shape=[None, 784])
+xr = tf.reshape(x, [-1, 1, 28, 28])
+y_ = tf.placeholder(tf.float32, shape=[None, 10])
 
-    # the data, shuffled and split between train and test sets
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
+shape = [10, 1, 28, 28]
 
-    if K.image_data_format() == 'channels_first':
-        x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
-        x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
-        input_shape = (1, img_rows, img_cols)
-    else:
-        x_train = x_train.reshape(x_train.shape[0], img_rows, img_cols, 1)
-        x_test = x_test.reshape(x_test.shape[0], img_rows, img_cols, 1)
-        input_shape = (1, img_rows, img_cols)
+templates = tf.Variable(tf.truncated_normal(shape, stddev=0.1))
+weights_var = tf.Variable(tf.truncated_normal(shape, stddev=0.1))
+weights = tf.abs(weights_var)
 
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-    x_train /= 255
-    x_test /= 255
-    print('x_train shape:', x_train.shape)
-    print(x_train.shape[0], 'train samples')
-    print(x_test.shape[0], 'test samples')
+sim = similarity(xr, templates, weights, similarity_function='L2', ksize=[28,28], strides=[28,28], padding=[0,0])
+y = tf.reshape(sim, [-1, 10])
 
-    # convert class vectors to binary class matrices
-    y_train = keras.utils.to_categorical(y_train, num_classes)
-    y_test = keras.utils.to_categorical(y_test, num_classes)
+with tf.device('/cpu:0'):
+    kmo_init, kmo = similarity_unsupervised_init('gmm', sim, templates, weights_var)
 
-    model = Sequential()
-    model.add(Conv2D(32, kernel_size=(3, 3),
-                     activation='relu',
-                     input_shape=input_shape))
-    #model.add(Conv2D(64, (3, 3), activation='relu'))
-    #model.add(sk.Similarity(32, ksize=[3, 3], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
-    #model.add(sk.Similarity(64, ksize=[3, 3], strides=[1, 1], similarity_function='L2'))
-    #model.add(sk.Mex(32, blocks=[1, 3, 3], use_unshared_regions=False, input_shape=input_shape))
-    model.add(sk.Mex(64, blocks=[32, 3, 3], strides=[32, 3, 3]))
-    model.add(sk.Similarity(64, ksize=[3, 3], strides=[1, 1], similarity_function='L2'))
-    #model.add(MaxPooling2D(pool_size=(2, 2)))
-    #model.add(Dropout(0.25))
-    model.add(Flatten())
-    model.add(Dense(128, activation='relu'))
-    #model.add(Dropout(0.5))
-    model.add(Dense(num_classes, activation='softmax'))
+cross_entropy = tf.reduce_mean(
+    tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
 
-    model.compile(loss=keras.losses.categorical_crossentropy,
-                  optimizer=keras.optimizers.Adam(lr=0.0001),
-                  metrics=['accuracy'])
+train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
 
-    model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              verbose=1,
-              validation_data=(x_test, y_test))
-    score = model.evaluate(x_test, y_test, verbose=0)
-    print('Test loss:', score[0])
-    print('Test accuracy:', score[1])
+batch = mnist.train.next_batch(100)
+sess.run(tf.global_variables_initializer(), feed_dict={x: batch[0], y_: batch[1]})
 
-if __name__ == '__main__':
-    main()
+
+for idx in range(300):
+    batch = mnist.train.next_batch(1000)
+    if idx == 0:
+        kmo_init.run(feed_dict={x: batch[0], y_: batch[1]})
+    kmo.run(feed_dict={x: batch[0], y_: batch[1]})
+    if (idx + 1) % 100 == 0:
+        print('kmeans', idx+1, '/', 1000)
+
+def normalize(img):
+    return (img - img.min()) / (img.max() - img.min())
+
+templates_np = tf.get_default_session().run(templates)
+plt.figure(1)
+for i in range(10):
+    plt.subplot(4,3, i+1)
+    plt.imshow(normalize(templates_np[i,0,...]))
+plt.show()
+
+for idx in range(1000):
+    batch = mnist.train.next_batch(100)
+    train_step.run(feed_dict={x: batch[0], y_: batch[1]})
+    if (idx + 1) % 100 == 0:
+        print(idx+1, '/', 1000)
+
+correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+print('Accuracy:', accuracy.eval(feed_dict={x: mnist.test.images, y_: mnist.test.labels}))

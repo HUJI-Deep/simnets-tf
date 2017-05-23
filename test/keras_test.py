@@ -23,23 +23,26 @@ weights = tf.abs(weights_var)
 sim = similarity(xr, templates, weights, similarity_function='L2', ksize=[28,28], strides=[28,28], padding=[0,0])
 y = tf.reshape(sim, [-1, 10])
 
-with tf.device('/cpu:0'):
-    kmo_init, kmo = similarity_unsupervised_init('gmm', sim, templates, weights_var)
+kmo_init, kmo = similarity_unsupervised_init('gmm', sim, templates, weights_var)
 
 cross_entropy = tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
 
 train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
 
-batch = mnist.train.next_batch(100)
-sess.run(tf.global_variables_initializer(), feed_dict={x: batch[0], y_: batch[1]})
+sess.run(tf.global_variables_initializer())
 
 
-for idx in range(300):
-    batch = mnist.train.next_batch(1000)
+for idx in range(100):
     if idx == 0:
+        batch = mnist.train.next_batch(1000)
         kmo_init.run(feed_dict={x: batch[0], y_: batch[1]})
+        continue
+    batch = mnist.train.next_batch(1000)
     kmo.run(feed_dict={x: batch[0], y_: batch[1]})
+    templates_np = tf.get_default_session().run(templates)
+    if idx < 10:
+        print(idx, templates_np[:,0,...].mean(axis=(1,2)))
     if (idx + 1) % 100 == 0:
         print('kmeans', idx+1, '/', 1000)
 
@@ -51,6 +54,7 @@ plt.figure(1)
 for i in range(10):
     plt.subplot(4,3, i+1)
     plt.imshow(normalize(templates_np[i,0,...]))
+    print(templates_np[i,0,...].mean())
 plt.show()
 
 for idx in range(1000):

@@ -13,7 +13,8 @@ endif()
 
 if (SIMNETS_WITH_CUDA)
     find_package(CUDA REQUIRED)
-    set(CUDA_NVCC_FLAGS -std=c++11 -DEIGEN_USE_GPU)
+    set(CUDA_NVCC_FLAGS -std=c++11 -DEIGEN_USE_GPU --expt-relaxed-constexpr)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_30,code=\"sm_30,compute_30\";-gencode arch=compute_35,code=\"sm_35,compute_35\";-gencode arch=compute_52,code=\"sm_52,compute_52\")
 endif()
 
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print(tf.sysconfig.get_include())"

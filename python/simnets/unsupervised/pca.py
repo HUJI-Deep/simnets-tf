@@ -1,25 +1,6 @@
 import tensorflow as tf
 
-'''
-class RS(object):
-    ...:     def __init__(self):
-        ...:         self.n = 0
-    ...:         self.new_m = 0
-    ...:         self.new_s = 0
-    ...:     def add(self, vals):
-        ...:         if self.n == 0:
-        ...:             self.n += len(vals)
-    ...:             self.new_m = np.mean(vals)
-    ...:         else:
-    ...:             old_m = self.new_m
-    ...:             self.n += len(vals)
-    ...:             self.new_m = old_m + (np.mean(vals) - old_m) / self.n
-    ...:             self.new_s = self.new_s + (np.mean(vals) - old_m)*(np.mean(
-        ...: vals) - self.new_m)
-'''
 
-# gsm cmd line srun --mem=3G -c2 --gres=gpu --time=48:0:00 --pty csh
-# module load cuda cudnn
 class RunningAverage(object):
 
     def __init__(self, shape, dtype):
@@ -51,14 +32,56 @@ class RunningAverage(object):
         return self.m
 
 
+def pca_unsupervised_init(conv_op, filters_var):
+    if isinstance(conv_op, tf.Tensor):
+        conv_op = conv_op.op
+    print(conv_op.type)
+    if not conv_op.type == 'Conv2D':
+        raise ValueError('pca_unsupervised_init needs a convolution op, got %s instead' % conv_op.type)
+    assert(isinstance(conv_op, tf.Operation))
+    name = conv_op.name + '_pca_init'
+    with tf.name_scope(name):
+        with tf.variable_scope(name):
+            input_tensor = conv_op.inputs[0]
+            filter_height, filter_width, in_channels, out_channels = filters_var.get_shape().as_list()
+            single_filter_size = filter_height * filter_width * in_channels
+            with tf.variable_scope('mu'):
+                mu_manager = RunningAverage([single_filter_size], filters_var.dtype)
+            with tf.variable_scope('sigma'):
+                sigma_manager = RunningAverage([single_filter_size, single_filter_size], filters_var.dtype)
+
+            ninstances = out_channels
+
+            strides = conv_op.get_attr('strides')
+            blocks = [1, filter_height, filter_width, 1]
+            data_format = conv_op.get_attr('data_format')
+            if data_format == 'NCHW':
+                input_tensor = tf.transpose(input_tensor, (0, 2, 3, 1))
+            patches = tf.extract_image_patches(input_tensor, strides=strides,
+                                               ksizes=blocks, rates=[1, 1, 1, 1], padding='VALID')
+            _, _, _, patch_size = patches.get_shape().as_list()
+            patches = tf.reshape(patches, [-1, patch_size])
+            mu_update = mu_manager.add(patches)
+            sigma_update = sigma_manager.add(tf.matmul(tf.expand_dims(patches, 2), tf.expand_dims(patches, 1)))
+            update_op = tf.group(mu_update, sigma_update)
+            cov = sigma_manager.value() - tf.matmul(tf.expand_dims(mu_manager.value(), 1),
+                                                    tf.expand_dims(mu_manager.value(), 0))
+            s, u, v = tf.svd(cov)
+            pca = v[:, :ninstances]
+            pca_for_filters = tf.reshape(pca, filters_var.get_shape().as_list())
+            assign_op = tf.assign(filters_var, pca_for_filters)
+            return update_op, assign_op
+
 if __name__ == '__main__':
-    ra = RunningAverage([3], tf.float32)
-    vals = tf.placeholder(tf.float32, [500,3])
-    add_op = ra.add(vals)
-    m = ra.value()
+    vals = tf.placeholder(tf.float32, [3,200,100,2])
+    filters = tf.get_variable('filts', shape=[3, 3, 2, 4])
+    conv = tf.nn.conv2d(vals, filters, strides=[1,2,2,1], padding='VALID')
+    conv2 = tf.nn.conv2d(vals, filters, strides=[1,2,2,1], padding='VALID')
+    update_op, assign_op = pca_unsupervised_init(conv, filters)
+    update_op2, assign_op2 = pca_unsupervised_init(conv2, filters)
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     import numpy as np
-    for i in range(300):
-        sess.run(add_op, feed_dict={vals: np.random.normal(3.0, size=[500,3])})
-    print(sess.run(m))
+    for i in range(30):
+        sess.run(update_op, feed_dict={vals: np.random.normal(3.0, size=[3,200,100,2])})
+    sess.run(assign_op)

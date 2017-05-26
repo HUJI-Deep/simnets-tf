@@ -16,7 +16,7 @@ class Similarity(Layer):
 
     def __init__(self, num_instances, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
                  normalization_term=False, normalization_term_fudge=0.001, ignore_nan_input=False,
-                 out_of_bounds_value=0, **kwargs):
+                 out_of_bounds_value=0, templates_initializer='random_normal', weights_initializer='ones', **kwargs):
         super(Similarity, self).__init__(**kwargs)
         self.num_instances = num_instances
         self.similarity_function = similarity_function
@@ -32,16 +32,18 @@ class Similarity(Layer):
         self.normalization_term_fudge = normalization_term_fudge
         self.ignore_nan_input = ignore_nan_input
         self.out_of_bounds_value = out_of_bounds_value
+        self.templates_initializer = templates_initializer
+        self.weights_initializer = weights_initializer
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
         self.sweights = self.add_weight(name='weights',
                                         shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
                                         trainable=True,
-                                        initializer='uniform')
+                                        initializer=self.weights_initializer)
         self.templates = self.add_weight(name='templates',
                                          shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
-                                         initializer='uniform',
+                                         initializer=self.templates_initializer,
                                          trainable=True)
 
         super(Similarity, self).build(input_shape)  # Be sure to call this somewhere!
@@ -59,12 +61,24 @@ class Similarity(Layer):
         return tuple(self.op.get_shape().as_list())
 
 
+def _dirichlet_init(shape, dtype=None):
+    if dtype is None:
+        dtype = K.floatx()
+    num_regions, num_instances, block_c, block_h, block_w = shape
+    k = block_c * block_h * block_w
+    # when given s as a size argument dirichlet function return an array with shape s + [k]
+    # then we reshape the output to be of the same shape as the variable
+    init_np = np.random.dirichlet([1] * k, size=(num_regions, num_instances)).astype(dtype)
+    init_np = init_np.reshape(shape)
+    return tf.constant(init_np)
+
+
 class Mex(Layer):
 
     def __init__(self, num_instances, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
                  epsilon=1.0, use_unshared_regions=True, shared_offset_region=[-1],
                  unshared_offset_region=[-1], softmax_mode=False, blocks_out_of_bounds_value=0.0,
-                 blocks_round_down=True, normalize_offsets=False, **kwargs):
+                 blocks_round_down=True, normalize_offsets=False, offsets_initializer=_dirichlet_init, **kwargs):
         super(Mex, self).__init__(**kwargs)
         self.num_instances = num_instances
         self.padding = padding
@@ -78,6 +92,7 @@ class Mex(Layer):
         self.blocks_out_of_bounds_value = blocks_out_of_bounds_value
         self.blocks_round_down = blocks_round_down
         self.normalize_offsets = normalize_offsets
+        self.offsets_initializer = offsets_initializer
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
@@ -88,7 +103,7 @@ class Mex(Layer):
 
         self.offsets = self.add_weight(name='offsets', shape=(nregions, self.num_instances) + tuple(self.blocks),
                                        trainable=True,
-                                       initializer='glorot_uniform')
+                                       initializer=self.offsets_initializer)
 
         if self.normalize_offsets:
             with tf.name_scope('NormalizeOffsets'):

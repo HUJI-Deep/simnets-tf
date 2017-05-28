@@ -1,7 +1,7 @@
 #include <vector>
 #include <cstring> // for memset
 
-#include "im2col.hpp"
+#include "utils/im2col.hpp"
 
 namespace simnets_tf {
 

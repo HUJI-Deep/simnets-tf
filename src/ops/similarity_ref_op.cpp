@@ -3,7 +3,7 @@
 //
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/op.h"
-#include "similarity_kernel_common.hpp"
+#include "kernels/similarity_kernel_common.hpp"
 
 using namespace tensorflow;
 

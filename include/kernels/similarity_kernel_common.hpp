@@ -7,7 +7,7 @@
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
-#include "im2col.hpp"
+#include "utils/im2col.hpp"
 
 
 enum SimilarityFunction {

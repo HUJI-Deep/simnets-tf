@@ -1,7 +1,7 @@
 //
 // Created by elhanani on 27/03/17.
 //
-#include "mex_kernel_common.hpp"
+#include "kernels/mex_kernel_common.hpp"
 
 #define DLL_PUBLIC __attribute__ ((visibility ("default")))
 

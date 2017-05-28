@@ -2,9 +2,9 @@
 // Created by elhanani on 01/04/17.
 //
 
-#include "mex_kernel_common.hpp"
-#include "ggemm_cpu.hpp"
-#include "ggemm.cuh"
+#include "kernels/mex_kernel_common.hpp"
+#include "utils/ggemm_cpu.hpp"
+#include "utils/ggemm.cuh"
 
 using namespace tensorflow;
 

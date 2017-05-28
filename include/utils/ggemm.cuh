@@ -15,7 +15,7 @@
 #ifndef _GGEMM_H_
 #define _GGEMM_H_
 #include "ggemm_cpu.hpp"
-#include "maps/maps.cuh"
+#include "../maps/maps.cuh"
 #define DEFAULT_BLOCK_SIZE (16)
 #define DEFAULT_VECTOR_SIZE (8)
 #if __CUDA_ARCH__ >= 200

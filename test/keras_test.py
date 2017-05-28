@@ -1,68 +1,63 @@
 import sys
 sys.path.append(r'/home/elhanani/study/huji-deep/install')
+import simnets.keras as sk
+import keras
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.layers import Dense, Flatten
+from keras import backend as K
+
+batch_size = 32
+num_classes = 10
+epochs = 2
+
+# input image dimensions
+img_rows, img_cols = 28, 28
+
+# the data, shuffled and split between train and test sets
+(x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+
+assert(K.image_data_format() == 'channels_first')
+x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
+x_test = x_test.reshape(x_test.shape[0], 1, img_rows, img_cols)
+input_shape = (1, img_rows, img_cols)
+
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= 255
+x_test /= 255
+print('x_train shape:', x_train.shape)
+print(x_train.shape[0], 'train samples')
+print(x_test.shape[0], 'test samples')
+
+# convert class vectors to binary class matrices
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
+
+model = Sequential()
+model.add(sk.Similarity(64, ksize=[1, 1], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
+model.add(sk.Mex(64, blocks=[64, 3, 3], strides=[64, 3, 3]))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dense(num_classes, activation='softmax'))
+
+model.compile(loss=keras.losses.categorical_crossentropy,
+              optimizer=keras.optimizers.Adam(lr=0.001),
+              metrics=['accuracy'])
 import tensorflow as tf
-print(tf.__version__)
-from tensorflow.examples.tutorials.mnist import input_data
-from simnets import similarity
-from simnets.unsupervised import similarity_unsupervised_init
-import matplotlib.pyplot as plt
 
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-sess = tf.InteractiveSession()
-
-x = tf.placeholder(tf.float32, shape=[None, 784])
-xr = tf.reshape(x, [-1, 1, 28, 28])
-y_ = tf.placeholder(tf.float32, shape=[None, 10])
-
-shape = [10, 1, 28, 28]
-
-templates = tf.Variable(tf.truncated_normal(shape, stddev=0.1))
-weights_var = tf.Variable(tf.truncated_normal(shape, stddev=0.1))
-weights = tf.abs(weights_var)
-
-sim = similarity(xr, templates, weights, similarity_function='L2', ksize=[28,28], strides=[28,28], padding=[0,0])
-y = tf.reshape(sim, [-1, 10])
-
-kmo_init, kmo = similarity_unsupervised_init('gmm', sim, templates, weights_var)
-
-cross_entropy = tf.reduce_mean(
-    tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y))
-
-train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
-
-sess.run(tf.global_variables_initializer())
-
-
-for idx in range(100):
-    if idx == 0:
-        batch = mnist.train.next_batch(1000)
-        kmo_init.run(feed_dict={x: batch[0], y_: batch[1]})
-        continue
-    batch = mnist.train.next_batch(1000)
-    kmo.run(feed_dict={x: batch[0], y_: batch[1]})
-    templates_np = tf.get_default_session().run(templates)
-    if idx < 10:
-        print(idx, templates_np[:,0,...].mean(axis=(1,2)))
-    if (idx + 1) % 100 == 0:
-        print('kmeans', idx+1, '/', 1000)
-
-def normalize(img):
-    return (img - img.min()) / (img.max() - img.min())
-
-templates_np = tf.get_default_session().run(templates)
-plt.figure(1)
-for i in range(10):
-    plt.subplot(4,3, i+1)
-    plt.imshow(normalize(templates_np[i,0,...]))
-    print(templates_np[i,0,...].mean())
-plt.show()
-
-for idx in range(1000):
-    batch = mnist.train.next_batch(100)
-    train_step.run(feed_dict={x: batch[0], y_: batch[1]})
-    if (idx + 1) % 100 == 0:
-        print(idx+1, '/', 1000)
-
-correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-print('Accuracy:', accuracy.eval(feed_dict={x: mnist.test.images, y_: mnist.test.labels}))
+sk.perform_unsupervised_init(model, kind='kmeans', data=x_train, batch_size=batch_size*3)
+clusters = tf.get_default_graph().get_tensor_by_name('similarity_1/weights:0')
+clusters = session = K.get_session().run(clusters)
+print(clusters.mean(axis=(1,2,3)))
+import sys
+sys.exit(0)
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])

@@ -30,36 +30,36 @@ include_directories(include
 
 add_compile_options(-DEIGEN_USE_THREADS)
 
-add_library(mex_dims_helper SHARED src/mex_dims_helper.cpp
-                                   src/mex_kernel_common.cpp)
+add_library(mex_dims_helper SHARED src/kernels/mex_dims_helper.cpp
+        src/kernels/mex_kernel_common.cpp)
 
 if (SIMNETS_WITH_CUDA)
-    cuda_add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
-            include/ggemm_cpu.hpp
-            include/similarity_kernel_common.hpp
-            include/im2col.hpp
-            src/im2col.cpp
-            src/similarity_kernel_gpu.cu
-            src/im2col.cu src/similarity_ref_op.cpp
-            src/similarity_grad_kernel_cpu.cpp
-            src/similarity_grad_kernel_gpu.cu
-            src/mex_op.cpp
-            src/mex_kernel_common.cpp
-            src/mex_kernel_cpu.cpp
-            src/mex_kernel_gpu.cu
-            src/mex_grad_kernel_cpu.cpp
-            src/mex_grad_kernel_gpu.cu)
+    cuda_add_library(simnet_ops SHARED src/ops/similarity_op.cpp src/kernels/similarity_kernel_cpu.cpp
+            include/utils/ggemm_cpu.hpp
+            include/kernels/similarity_kernel_common.hpp
+            include/utils/im2col.hpp
+            src/utils/im2col.cpp
+            src/kernels/similarity_kernel_gpu.cu
+            src/utils/im2col.cu src/ops/similarity_ref_op.cpp
+            src/kernels/similarity_grad_kernel_cpu.cpp
+            src/kernels/similarity_grad_kernel_gpu.cu
+            src/ops/mex_op.cpp
+            src/kernels/mex_kernel_common.cpp
+            src/kernels/mex_kernel_cpu.cpp
+            src/kernels/mex_kernel_gpu.cu
+            src/kernels/mex_grad_kernel_cpu.cpp
+            src/kernels/mex_grad_kernel_gpu.cu)
 else()
-    add_library(simnet_ops SHARED src/similarity_op.cpp src/similarity_kernel_cpu.cpp
-                                  include/ggemm_cpu.hpp
-                                  include/similarity_kernel_common.hpp
-                                  include/im2col.hpp
-                                  src/im2col.cpp src/similarity_ref_op.cpp
-                                  src/similarity_grad_kernel_cpu.cpp
-                                  src/mex_op.cpp
-                                  src/mex_kernel_common.cpp
-                                  src/mex_kernel_cpu.cpp
-                                  src/mex_grad_kernel_cpu.cpp)
+    add_library(simnet_ops SHARED src/ops/similarity_op.cpp src/kernels/similarity_kernel_cpu.cpp
+            include/utils/ggemm_cpu.hpp
+            include/kernels/similarity_kernel_common.hpp
+            include/utils/im2col.hpp
+            src/utils/im2col.cpp src/ops/similarity_ref_op.cpp
+            src/kernels/similarity_grad_kernel_cpu.cpp
+            src/ops/mex_op.cpp
+            src/kernels/mex_kernel_common.cpp
+            src/kernels/mex_kernel_cpu.cpp
+            src/kernels/mex_grad_kernel_cpu.cpp)
 endif()
 
 add_custom_target(test_simnet_ops

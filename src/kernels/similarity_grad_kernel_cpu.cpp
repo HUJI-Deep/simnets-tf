@@ -4,9 +4,9 @@
 
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
-#include "similarity_kernel_common.hpp"
-#include "im2col.hpp"
-#include "ggemm_cpu.hpp"
+#include "kernels/similarity_kernel_common.hpp"
+#include "utils/im2col.hpp"
+#include "utils/ggemm_cpu.hpp"
 
 using namespace tensorflow;
 

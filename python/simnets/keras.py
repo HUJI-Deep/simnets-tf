@@ -5,11 +5,14 @@ from __future__ import absolute_import
 import tensorflow as tf
 import numpy as np
 from keras.engine.topology import Layer
+import keras.layers
+import keras.utils.generic_utils as _kutils
 from keras import backend as K
 from keras.backend.tensorflow_backend import _initialize_variables
 from .ops import similarity as _similarity
-from .ops.mex import _mex_dims_helper, mex as _mex
+from .ops.mex import _mex_dims_helper, mex as _mex, _expand_dim_specification
 from .unsupervised import similarity_unsupervised_init as _similarity_unsupervised_init
+from .unsupervised.pca import pca_unsupervised_init as _pca_unsupervised_init
 
 
 class Similarity(Layer):
@@ -78,7 +81,7 @@ class Mex(Layer):
     def __init__(self, num_instances, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
                  epsilon=1.0, use_unshared_regions=True, shared_offset_region=[-1],
                  unshared_offset_region=[-1], softmax_mode=False, blocks_out_of_bounds_value=0.0,
-                 blocks_round_down=True, normalize_offsets=False, offsets_initializer=_dirichlet_init, **kwargs):
+                 blocks_round_down=True, normalize_offsets=False, offsets_initializer=dirichlet_init(), **kwargs):
         super(Mex, self).__init__(**kwargs)
         self.num_instances = num_instances
         self.padding = padding
@@ -95,6 +98,8 @@ class Mex(Layer):
         self.offsets_initializer = offsets_initializer
 
     def build(self, input_shape):
+        # first we resolve the blocks dimension using the image shape
+        self.blocks = _expand_dim_specification(input_shape, self.blocks)
         # Create a trainable weight variable for this layer.
         nregions = _mex_dims_helper(input_shape[1:], self.num_instances, blocks=self.blocks, padding=self.padding,
                                     strides=self.strides, use_unshared_regions=self.use_unshared_regions,
@@ -125,9 +130,11 @@ class Mex(Layer):
         return tuple(self.op.get_shape().as_list())
 
 
-def perform_unsupervised_init(model, kind, layers=[], data=None, batch_size=None):
+def perform_unsupervised_init(model, kind='gmm', layers=[], data=None, batch_size=None):
     if not layers:
-        layers = [l for l in model.layers if isinstance(l, Similarity)]
+        layers = [l
+                  for l in model.layers
+                  if isinstance(l, Similarity) or isinstance(l, keras.layers.Conv2D)]
 
     if isinstance(data, np.ndarray):
         if batch_size is None:
@@ -143,13 +150,32 @@ def perform_unsupervised_init(model, kind, layers=[], data=None, batch_size=None
     input_tensor = model.input
     session = K.get_session()
 
+    if data is not None:
+        num_iters = len(data)
+    else:
+        num_iters = None
+
     for layer in layers:
-        u_init, u_op = _similarity_unsupervised_init(kind, layer.op, layer.weights[1], layer.weights[0])
-        _initialize_variables()
-        print('running unsupervised initialization for layer {}'.format(layer.name))
-        for idx, batch in enumerate(data_gen()):
-            fd = {input_tensor: batch}
-            if idx == 0:
-                session.run(u_init, feed_dict=fd)
-            session.run(u_op, feed_dict=fd)
+        print('running unsupervised initialization for layer {}:'.format(layer.name))
+        if isinstance(layer, Similarity):
+            u_init, u_op = _similarity_unsupervised_init(kind, layer.op, layer.weights[1], layer.weights[0])
+            _initialize_variables()
+            prog_bar = _kutils.Progbar(num_iters)
+            for idx, batch in enumerate(data_gen()):
+                fd = {input_tensor: batch}
+                if idx == 0:
+                    session.run(u_init, feed_dict=fd)
+                session.run(u_op, feed_dict=fd)
+                prog_bar.update(idx * batch_size)
+        else: #  Convolution
+            conv_op = tf.get_default_graph().get_operation_by_name(layer.name + '/convolution')
+            u_update, u_assign = _pca_unsupervised_init(conv_op, layer.weights[0])
+            _initialize_variables()
+            prog_bar = _kutils.Progbar(num_iters)
+            for idx, batch in enumerate(data_gen()):
+                fd = {input_tensor: batch}
+                session.run(u_update, feed_dict=fd)
+                prog_bar.update(idx * batch_size)
+            session.run(u_assign, feed_dict=fd)
+        print()
 

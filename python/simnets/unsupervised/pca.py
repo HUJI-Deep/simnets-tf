@@ -35,7 +35,6 @@ class RunningAverage(object):
 def pca_unsupervised_init(conv_op, filters_var):
     if isinstance(conv_op, tf.Tensor):
         conv_op = conv_op.op
-    print(conv_op.type)
     if not conv_op.type == 'Conv2D':
         raise ValueError('pca_unsupervised_init needs a convolution op, got %s instead' % conv_op.type)
     assert(isinstance(conv_op, tf.Operation))

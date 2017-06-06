@@ -26,7 +26,7 @@ class Similarity(Layer):
         self.strides = strides
         self.ksize = ksize
         if isinstance(padding, str):
-            if padding not in ['SAME', 'VALID']:
+            if padding.upper() not in ['SAME', 'VALID']:
                 raise ValueError('Padding must be one of SAME, VALID (or a list of ints)')
             self.padding = [0, 0] if padding == 'VALID' else [e//2 for e in ksize]
         else:
@@ -103,6 +103,11 @@ class Mex(Layer):
     def build(self, input_shape):
         # first we resolve the blocks dimension using the image shape
         self.blocks = _expand_dim_specification(input_shape, self.blocks)
+        if isinstance(self.padding, str):
+            if self.padding.upper() not in ['SAME', 'VALID']:
+                raise ValueError('Padding must be one of SAME, VALID (or a list of ints)')
+            self.padding = [0, 0, 0] if self.padding == 'VALID' else [e//2 for e in self.blocks]
+
         # Create a trainable weight variable for this layer.
         nregions = _mex_dims_helper(input_shape[1:], self.num_instances, blocks=self.blocks, padding=self.padding,
                                     strides=self.strides, use_unshared_regions=self.use_unshared_regions,

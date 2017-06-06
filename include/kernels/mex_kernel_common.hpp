@@ -5,10 +5,15 @@
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "utils/im2col.hpp"
 
-
+/// Handles the calculation of shared/unshared regions from image dimensions.
+/// also holds all the relevant dimensions data for use in the kernel
 struct MexDimensionsData
 {
-    std::vector<int> padding_, strides_, blocks_, shared_offset_region_, unshared_offset_region_;
+    std::vector<int> padding_; //!<  padding added to the
+    std::vector<int> strides_;
+    std::vector<int> blocks_;
+    std::vector<int> shared_offset_region_;
+    std::vector<int> unshared_offset_region_;
     void CalculateDimensionsWithConext(tensorflow::OpKernelContext* context);
     void CalculateDimensions();
     int block_c_, block_h_, block_w_;
@@ -22,10 +27,16 @@ struct MexDimensionsData
     bool blocks_round_down_;
     bool use_log_space_parameters_;
     float linear_space_min_value_;
-    int shared_offsets_region_c_, shared_offsets_region_h_, shared_offsets_region_w_;
+    int shared_offsets_region_c_;
+    int shared_offsets_region_h_;
+    int shared_offsets_region_w_;
     bool use_unshared_regions_;
-    int unshared_offsets_region_c_, unshared_offsets_region_h_, unshared_offsets_region_w_;
-    int offsets_c_, offsets_h_, offsets_w_;
+    int unshared_offsets_region_c_;
+    int unshared_offsets_region_h_;
+    int unshared_offsets_region_w_;
+    int offsets_c_;
+    int offsets_h_;
+    int offsets_w_;
     int region_size_;
     int num_regions_;
     bool is_1x1_;
@@ -37,7 +48,7 @@ struct MexDimensionsData
     /// leading dimension of the filter matrix.
     int M_;
     /// K_ is the dimension of an unrolled input for a single group, which is the
-    /// leading dimension of the data matrix.
+    //! leading dimension of the data matrix.
     int K_;
     /// N_ is the spatial dimension of the output, the H x W, which are the last
     /// dimensions of the data and filter matrices.

@@ -17,18 +17,29 @@ enum SimilarityFunction {
 
 class SimilarityKernelCommon : public tensorflow::OpKernel {
 public:
+    /// Constructor
+    /// \param context tensorflow context
     explicit SimilarityKernelCommon(tensorflow::OpKernelConstruction *context);
 
 protected:
-    std::vector<int> ksize_;
-    std::vector<int> stride_;
-    std::vector<int> padding_;
-    bool normalization_term_;
-    float normalization_term_fudge_;
-    bool ignore_nan_input_;
-    float out_of_bounds_value_;
-    SimilarityFunction similarity_function_;
+    /// @name patches specification
+    /// output value at (i,j) corresponds to the block:<BR/>
+    ///    [i * strides[0] - padding_[0], [i * strides[0] - padding_[0] + ksize[0]]
+    ///       x [j * strides[1] - padding_[1], [i * strides[1] - padding_[1] + ksize[1]]
+    ///@{
+    std::vector<int> ksize_; //!< size of a block [h, w]
+    std::vector<int> stride_; //!< strides [stride_h, stride_w]
+    std::vector<int> padding_; //!< padding in each dimension [padding_h, padding_w]
+    ///@}
+    bool normalization_term_; //!< add normalization term, to make the operation calculate a real probability function
+    float normalization_term_fudge_; //!< fudge factor for normalization
+    bool ignore_nan_input_; //!< if true, nan input is ignored (marginalized)
+    float out_of_bounds_value_; //!< value to use when calculation involves out of bound values
+    SimilarityFunction similarity_function_; //!< type of similarity function {SIM_FUNC_L1, SIM_FUNC_L2}
 
+    /// Calculate all the dimension data for use in the different kernels
+    /// \tparam T float or double
+    /// \param context the tensorflow context, holds info about actual dimensions
     template <typename  T>
     void CalculateDimensions(tensorflow::OpKernelContext *context);
 
@@ -60,7 +71,7 @@ protected:
     tensorflow::int64 pad_h_;
     tensorflow::int64 pad_w_;
     tensorflow::int64 pad_c_;
-    bool is_1x1_;
+    bool is_1x1_; //!< if true the operator would use an optimized procedure
 
     long M_;
     long K_;
@@ -103,10 +114,13 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     auto templates = context->input(1);
     auto weights = context->input(2);
 
+    // get Eigen tensors from the tf ones
     auto input_t = input.tensor<T, 4>();
     auto templates_t = templates.tensor<T, 4>();
     auto weights_t = weights.tensor<T, 4>();
 
+    // prepare all variables to be used in the kernels
+    // the only actual calculation here is that of the output dimensions
     num_instances_ = templates_t.dimension(0);
 
     batch_ = input_t.dimension(BATCH_DIM);

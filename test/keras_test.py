@@ -4,7 +4,7 @@ import simnets.keras as sk
 import keras
 from keras.datasets import mnist
 from keras.models import Sequential
-from keras.layers import Dense, Flatten
+from keras.layers import Dense, Flatten, Conv2D
 from keras import backend as K
 
 batch_size = 32
@@ -36,7 +36,8 @@ y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
-model.add(sk.Similarity(64, ksize=[1, 1], strides=[1, 1], similarity_function='L2', input_shape=input_shape))
+model.add(Conv2D(9, kernel_size=[3, 3], strides=[1, 1], input_shape=input_shape))
+model.add(sk.Similarity(64, ksize=[1, 1], strides=[1, 1], similarity_function='L2'))
 model.add(sk.Mex(64, blocks=[64, 3, 3], strides=[64, 3, 3]))
 model.add(Flatten())
 model.add(Dense(128, activation='relu'))
@@ -47,12 +48,12 @@ model.compile(loss=keras.losses.categorical_crossentropy,
               metrics=['accuracy'])
 import tensorflow as tf
 
-sk.perform_unsupervised_init(model, kind='kmeans', data=x_train, batch_size=batch_size*3)
+sk.perform_unsupervised_init(model, kind='gmm', data=x_train, batch_size=batch_size)
 clusters = tf.get_default_graph().get_tensor_by_name('similarity_1/weights:0')
 clusters = session = K.get_session().run(clusters)
-print(clusters.mean(axis=(1,2,3)))
+#print(clusters.mean(axis=(1,2,3)))
 import sys
-sys.exit(0)
+
 model.fit(x_train, y_train,
           batch_size=batch_size,
           epochs=epochs,

@@ -64,16 +64,19 @@ class Similarity(Layer):
         return tuple(self.op.get_shape().as_list())
 
 
-def _dirichlet_init(shape, dtype=None):
-    if dtype is None:
-        dtype = K.floatx()
-    num_regions, num_instances, block_c, block_h, block_w = shape
-    k = block_c * block_h * block_w
-    # when given s as a size argument dirichlet function return an array with shape s + [k]
-    # then we reshape the output to be of the same shape as the variable
-    init_np = np.random.dirichlet([1] * k, size=(num_regions, num_instances)).astype(dtype)
-    init_np = init_np.reshape(shape)
-    return tf.constant(init_np)
+def dirichlet_init(alpha=1.0):
+    def _dirichlet_init(shape, dtype=None):
+        if dtype is None:
+            dtype = K.floatx()
+        num_regions, num_instances, block_c, block_h, block_w = shape
+        k = block_c * block_h * block_w
+        # when given s as a size argument dirichlet function return an array with shape s + [k]
+        # then we reshape the output to be of the same shape as the variable
+        init_np = np.random.dirichlet([alpha] * k, size=(num_regions, num_instances)).astype(dtype)
+        init_np = np.log(init_np)
+        init_np = init_np.reshape(shape)
+        return tf.constant(init_np)
+    return _dirichlet_init
 
 
 class Mex(Layer):

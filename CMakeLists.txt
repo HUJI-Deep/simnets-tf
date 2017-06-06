@@ -26,6 +26,7 @@ if (NOT ${TF_RES} EQUAL 0)
 endif()
 
 include_directories(include
+                    third_party/maps/include
                     ${TF_INCLUDES})
 
 add_compile_options(-DEIGEN_USE_THREADS)

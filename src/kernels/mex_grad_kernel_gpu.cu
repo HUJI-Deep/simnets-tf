@@ -4,6 +4,7 @@
 
 #include "kernels/mex_kernel_common.hpp"
 #include "utils/ggemm.cuh"
+#include "utils/ggemm_cpu.hpp"
 
 using namespace tensorflow;
 
@@ -44,6 +45,7 @@ public:
         TensorShape offsets_padded_shape{{offsets_unpadded_t.size() + ggemm_padded_output_size(M_, K_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, offsets_padded_shape, &offsets_padded);
         context->allocate_temp(DataTypeToEnum<T>::value, offsets_padded_shape, &offsets_padded_transpose);
+
         auto offsets_padded_t = offsets_padded.tensor<T, 1>();
         auto offsets_padded_transpose_t = offsets_padded_transpose.tensor<T, 1>();
         copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(),
@@ -243,7 +245,7 @@ public:
         Tensor *offsets_grad = NULL;
         OP_REQUIRES_OK(context, context->allocate_output(0, context->input(1).shape(), &offsets_grad));
         auto offsets_grad_t = offsets_grad->tensor<T, 5>();
-        //offsets_grad_t.device(context->eigen_cpu_device()) = offsets_grad_t.constant(0);
+        //offsets_grad_t.device(context->eigen_gpu_device()) = offsets_grad_t.constant(0);
         zero_out(*offsets_grad);
 
         Tensor col_buffer, col_buffer_grad;

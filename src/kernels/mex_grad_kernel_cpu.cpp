@@ -5,6 +5,7 @@
 #include "kernels/mex_kernel_common.hpp"
 #include "utils/ggemm_cpu.hpp"
 
+
 using namespace tensorflow;
 
 namespace
@@ -228,8 +229,7 @@ public:
         auto output_grad_t = output_grad.tensor<T, 4>();
         auto offsets_unpadded_t = offsets_unpadded.tensor<T, 5>();
 
-        auto zero_out = [&](Tensor& t)
-        {
+        auto zero_out = [&](Tensor &t) {
             auto flat = t.flat<T>();
             flat.device(context->eigen_cpu_device()) = flat.constant(0);
         };
@@ -238,25 +238,26 @@ public:
         TensorShape offsets_padded_shape{{offsets_unpadded_t.size() + ggemm_padded_output_size(M_, K_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, offsets_padded_shape, &offsets_padded);
         auto offsets_padded_t = offsets_padded.tensor<T, 1>();
-        copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(),
-                        offsets_unpadded_t.size(), context->eigen_cpu_device());
+        copy_with_eigen(offsets_padded_t.data(), offsets_unpadded_t.data(), offsets_unpadded_t.size(),
+                        context->eigen_cpu_device());
 
 
         Tensor *offsets_grad = NULL;
         OP_REQUIRES_OK(context, context->allocate_output(0, context->input(1).shape(), &offsets_grad));
         auto offsets_grad_t = offsets_grad->tensor<T, 5>();
-        //offsets_grad_t.device(context->eigen_cpu_device()) = offsets_grad_t.constant(0);
         zero_out(*offsets_grad);
 
         Tensor col_buffer, col_buffer_grad;
-        TensorShape col_buffer_shape{{K_ * channels_out_ * height_out_ * width_out_ + ggemm_padded_output_size(K_, N_)}};
+        TensorShape col_buffer_shape{{K_ * channels_out_ * height_out_ * width_out_ +
+                                      ggemm_padded_output_size(K_, N_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer);
         context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer_grad);
         auto col_buffer_t = col_buffer.tensor<T, 1>();
         zero_out(col_buffer);
 
         Tensor split_patches_in_tensor, split_patches_in_grad_tensor;
-        TensorShape split_patches_in_shape{{num_regions_ * K_ * region_size_ + ggemm_padded_output_size(K_, region_size_)}};
+        TensorShape split_patches_in_shape{{num_regions_ * K_ * region_size_ +
+                                            ggemm_padded_output_size(K_, region_size_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_in_shape, &split_patches_in_tensor);
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_in_shape, &split_patches_in_grad_tensor);
         zero_out(split_patches_in_tensor);
@@ -265,7 +266,8 @@ public:
         auto split_patches_in_grad_t = split_patches_in_grad_tensor.tensor<T, 1>();
 
         Tensor split_patches_out_tensor, split_patches_out_grad_tensor;
-        TensorShape split_patches_out_shape{{num_regions_ * M_ * region_size_ + ggemm_padded_output_size(M_, region_size_)}};
+        TensorShape split_patches_out_shape{{num_regions_ * M_ * region_size_ +
+                                             ggemm_padded_output_size(M_, region_size_)}};
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_out_shape, &split_patches_out_tensor);
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_out_shape, &split_patches_out_grad_tensor);
         zero_out(split_patches_out_tensor);
@@ -274,15 +276,16 @@ public:
         auto split_patches_out_grad_t = split_patches_out_grad_tensor.tensor<T, 1>();
 
         Tensor split_patches_inter_tensor;
-        TensorShape split_patches_inter_tensor_shape{{2*(num_regions_ * M_ * region_size_ + ggemm_padded_output_size(M_, region_size_))}};
+        TensorShape split_patches_inter_tensor_shape{{2 * (num_regions_ * M_ * region_size_ +
+                                                           ggemm_padded_output_size(M_, region_size_))}};
         context->allocate_temp(DataTypeToEnum<T>::value, split_patches_inter_tensor_shape, &split_patches_inter_tensor);
         auto split_patches_inter_t = split_patches_inter_tensor.tensor<T, 1>();
 
         // -------------------------------------------------------------------------------
 
-        const Dtype* top_diff = output_grad_t.data();
-        const Dtype* top_data = output_t.data();
-        Dtype* col_buff = NULL;
+        const Dtype *top_diff = output_grad_t.data();
+        const Dtype *top_data = output_t.data();
+        Dtype *col_buff = NULL;
         if (!is_1x1_) {
             col_buff = col_buffer_t.data();
         }
@@ -304,12 +307,12 @@ public:
                         col_buff,
                         blocks_round_down_, blocks_out_of_bounds_value_);
             } else {  // special case for 1x1 convolution
-                col_buff =  input_at_batch(n);
+                col_buff = input_at_batch(n);
             }
 
             // Prepare input for backprop
-            const Dtype* current_top_data = top_data + n * M_ * N_;
-            const Dtype* current_top_diff = top_diff + n * M_ * N_;
+            const Dtype *current_top_data = top_data + n * M_ * N_;
+            const Dtype *current_top_diff = top_diff + n * M_ * N_;
             Dtype *split_patches_in;
             Dtype *split_patches_out, *split_patches_out_diff;
             typename vec<T>::vec2 *split_patches_out_inter;
@@ -335,8 +338,8 @@ public:
                                                 current_top_diff, split_patches_out_diff, use_unshared_regions_);
             } else {
                 split_patches_in = col_buff;
-                split_patches_out = (Dtype*)current_top_data;
-                split_patches_out_diff = (Dtype*)current_top_diff;
+                split_patches_out = (Dtype *) current_top_data;
+                split_patches_out_diff = (Dtype *) current_top_diff;
             }
             split_patches_out_inter = reinterpret_cast<typename vec<Dtype>::vec2 *>(
                     split_patches_inter_t.data());
@@ -346,25 +349,20 @@ public:
             // temp use of split_patches_in_diff for transposing the patches
             {
                 typename TTypes<T, 3>::ConstTensor tmp_patches(split_patches_in, num_regions_, K_, region_size_);
-                typename TTypes<T, 3>::Tensor tmp_patches_transpose(split_patches_in_grad_t.data(), num_regions_, region_size_, K_);
-                Eigen::array<int, 3> indices{0,2,1};
+                typename TTypes<T, 3>::Tensor tmp_patches_transpose(split_patches_in_grad_t.data(), num_regions_,
+                                                                    region_size_, K_);
+                Eigen::array<int, 3> indices{0, 2, 1};
                 tmp_patches_transpose.device(context->eigen_cpu_device()) = tmp_patches.shuffle(indices);
             }
             if (std::isfinite(epsilon_)) {
-                ggemm_readc_cpu
-                        <false, false, typename vec<Dtype>::vec2, Dtype, Dtype, typename vec<Dtype>::vec2,
-                                mex_backward_offsets_finite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, typename vec<Dtype>::vec2>, false,
-                                true, true, true>
-                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
-                         offsets_padded_t.data(), offsets_grad_t.data(), 0,
-                         make_vec2<Dtype>(epsilon_, softmax_mode_ ? Dtype(0) : (Dtype)-std::log(K_)), num_regions_);
+                ggemm_readc_cpu<false, false, typename vec<Dtype>::vec2, Dtype, Dtype, typename vec<Dtype>::vec2, mex_backward_offsets_finite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, typename vec<Dtype>::vec2>, false, true, true, true>(
+                        M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
+                        offsets_padded_t.data(), offsets_grad_t.data(), 0,
+                        make_vec2<Dtype>(epsilon_, softmax_mode_ ? Dtype(0) : (Dtype) -std::log(K_)), num_regions_);
             } else {
-                ggemm_readc_cpu
-                        <false, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t,
-                                mex_backward_offsets_infinite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, uint8_t>, false,
-                                true, true, true>
-                        (M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
-                         offsets_padded_t.data(), offsets_grad_t.data(), 0, 0, num_regions_);
+                ggemm_readc_cpu<false, false, typename vec<Dtype>::vec2, Dtype, Dtype, uint8_t, mex_backward_offsets_infinite<Dtype>, ggemm_add<Dtype>, true, no_op<Dtype, uint8_t>, false, true, true, true>(
+                        M_, K_, region_size_, split_patches_out_inter, split_patches_in_grad_t.data(),
+                        offsets_padded_t.data(), offsets_grad_t.data(), 0, 0, num_regions_);
             }
         }
     }

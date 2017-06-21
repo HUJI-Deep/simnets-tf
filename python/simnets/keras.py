@@ -112,6 +112,7 @@ class Mex(Layer):
         nregions = _mex_dims_helper(input_shape[1:], self.num_instances, blocks=self.blocks, padding=self.padding,
                                     strides=self.strides, use_unshared_regions=self.use_unshared_regions,
                                     shared_offset_region=self.shared_offset_region,
+                                    blocks_round_down=self.blocks_round_down,
                                     unshared_offset_region=self.unshared_offset_region)
 
         self.offsets = self.add_weight(name='offsets', shape=(nregions, self.num_instances) + tuple(self.blocks),
@@ -120,9 +121,9 @@ class Mex(Layer):
 
         if self.normalize_offsets:
             with tf.name_scope('NormalizeOffsets'):
-                flattened = tf.reshape(self.offsets, [nregions, -1])
+                flattened = tf.reshape(self.offsets, [nregions*self.num_instances, -1])
                 norm_terms = tf.reduce_logsumexp(flattened, axis=1, keep_dims=True)
-                flattened_normed = flattened / norm_terms # Broadcast
+                flattened_normed = flattened - norm_terms # Broadcast
                 self.offsets = tf.reshape(flattened_normed, tf.shape(self.offsets))
 
         super(Mex, self).build(input_shape)  # Be sure to call this somewhere!
@@ -131,7 +132,11 @@ class Mex(Layer):
         self.op = _mex(x, self.offsets, self.num_instances, blocks=self.blocks, padding=self.padding,
                        strides=self.strides, use_unshared_regions=self.use_unshared_regions,
                        shared_offset_region=self.shared_offset_region,
-                       unshared_offset_region=self.unshared_offset_region)
+                       blocks_out_of_bounds_value=self.blocks_out_of_bounds_value,
+                       blocks_round_down=self.blocks_round_down,
+                       unshared_offset_region=self.unshared_offset_region,
+                       epsilon=self.epsilon,
+                       softmax_mode=self.softmax_mode)
         return self.op
 
     def compute_output_shape(self, input_shape):

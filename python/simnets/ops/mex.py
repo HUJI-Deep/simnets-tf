@@ -49,6 +49,7 @@ def _mex_grad(op, grad):
     padding = op.get_attr('padding')
     strides = op.get_attr('strides')
     epsilon = op.get_attr('epsilon')
+    blocks = op.get_attr('blocks')
     blocks_out_of_bounds_value = op.get_attr('blocks_out_of_bounds_value')
     blocks_round_down = op.get_attr('blocks_round_down')
     use_unshared_regions = op.get_attr('use_unshared_regions')
@@ -57,12 +58,16 @@ def _mex_grad(op, grad):
 
     grad_input = _mex_input_grad(inp, offsets, output, grad, num_instances=num_instances, softmax_mode=softmax_mode,
                                  padding=padding, strides=strides, epsilon=epsilon,
+                                 blocks=blocks,
                                  blocks_out_of_bounds_value=blocks_out_of_bounds_value,
-                                 blocks_round_down=blocks_round_down, use_unshared_regions=use_unshared_regions,
-                                 shared_offset_region=shared_offset_region, unshared_offset_region=unshared_offset_region)
+                                 blocks_round_down=blocks_round_down,
+                                 use_unshared_regions=use_unshared_regions,
+                                 shared_offset_region=shared_offset_region,
+                                 unshared_offset_region=unshared_offset_region)
 
     grad_offsets = _mex_offsets_grad(inp, offsets, output, grad, num_instances=num_instances, softmax_mode=softmax_mode,
                                      padding=padding, strides=strides, epsilon=epsilon,
+                                     blocks=blocks,
                                      blocks_out_of_bounds_value=blocks_out_of_bounds_value,
                                      blocks_round_down=blocks_round_down, use_unshared_regions=use_unshared_regions,
                                      shared_offset_region=shared_offset_region, unshared_offset_region=unshared_offset_region)

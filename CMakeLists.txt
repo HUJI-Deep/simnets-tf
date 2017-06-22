@@ -41,7 +41,7 @@ if (SIMNETS_WITH_CUDA)
             include/utils/im2col.hpp
             src/utils/im2col.cpp
             src/kernels/similarity_kernel_gpu.cu
-            src/utils/im2col.cu src/ops/similarity_ref_op.cpp
+            src/utils/im2col.cu src/kernels/similarity_ref_kernel_cpu.cpp
             src/kernels/similarity_grad_kernel_cpu.cpp
             src/kernels/similarity_grad_kernel_gpu.cu
             src/ops/mex_op.cpp
@@ -55,7 +55,7 @@ else()
             include/utils/ggemm_cpu.hpp
             include/kernels/similarity_kernel_common.hpp
             include/utils/im2col.hpp
-            src/utils/im2col.cpp src/ops/similarity_ref_op.cpp
+            src/utils/im2col.cpp src/kernels/similarity_ref_kernel_cpu.cpp
             src/kernels/similarity_grad_kernel_cpu.cpp
             src/ops/mex_op.cpp
             src/kernels/mex_kernel_common.cpp

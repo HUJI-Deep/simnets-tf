@@ -102,21 +102,6 @@ public:
     }
 };
 
-REGISTER_OP("SimilarityRef")
-        .Input("input: T")
-        .Input("templates: T")
-        .Input("weights: T")
-        .Output("output: T")
-        .Attr("T: {float32, float64}")
-        .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [3,3]")
-        .Attr("strides: list(int) = [2,2]")
-        .Attr("padding: list(int) = [0,0]")
-        .Attr("normalization_term: bool = false")
-        .Attr("normalization_term_fudge: float = 0.001")
-        .Attr("ignore_nan_input: bool = false")
-        .Attr("out_of_bounds_value: float = 0.0");
-
 REGISTER_KERNEL_BUILDER(
         Name("SimilarityRef")
                 .Device(DEVICE_CPU)

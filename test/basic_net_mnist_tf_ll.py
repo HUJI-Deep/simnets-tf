@@ -234,7 +234,7 @@ def main():
 
     with tf.Session(graph=graph) as sess:
         sess.run(tf.global_variables_initializer())
-        writer = tf.summary.FileWriter('/home/elhanani/study/huji-deep/install/logs', graph=graph)
+        writer = tf.summary.FileWriter('log', graph=graph)
         for i in range(3000):
             inp, lbls = mnist.train.next_batch(100)
             inp = inp.reshape(-1, 1, 28, 28) - 0.5

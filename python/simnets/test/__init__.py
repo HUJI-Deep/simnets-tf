@@ -103,7 +103,7 @@ class SimilarityTests(tf.test.TestCase):
             with tf.device('/gpu:0'):
                 sim = similarity(images, templates, weights, ksize=[3,3], strides=[2,2], padding=[1,1], similarity_function='L2')
                 computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
-            self.assertNDArrayNear(numeric, computed, 1e-4)
+            self.assertNDArrayNear(computed, numeric, 1e-4)
 
     def test_gradient_input_l1(self):
         with self.test_session():
@@ -122,7 +122,7 @@ class SimilarityTests(tf.test.TestCase):
             with tf.device('/gpu:0'):
                 sim = similarity(images, templates, weights, ksize=[3,3], strides=[2,2], padding=[1,1], similarity_function='L1')
                 computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
-            self.assertNDArrayNear(numeric, computed, 1e-2)
+            self.assertNDArrayNear(computed, numeric, 1e-2)
 
     def test_gradient_templates_l2(self):
         with self.test_session():
@@ -142,7 +142,7 @@ class SimilarityTests(tf.test.TestCase):
                 sim = similarity(images, templates, weights, ksize=[3,3], strides=[4,4], padding=[1,1],
                                  similarity_function='L2')
                 computed, numeric = tf.test.compute_gradient(templates, templates.get_shape().as_list(), tf.abs(sim), [2,1,10,10], delta=1e-2)
-            self.assertNDArrayNear(numeric, computed, 1e-4)
+            self.assertAllClose(computed, numeric, atol=1e-3, rtol=1e-2)
 
     def test_gradient_templates_l1(self):
         with self.test_session():
@@ -162,7 +162,7 @@ class SimilarityTests(tf.test.TestCase):
                 sim = similarity(images, templates, weights, ksize=[3,3], strides=[4,4], padding=[1,1],
                                  similarity_function='L1')
                 computed, numeric = tf.test.compute_gradient(templates, templates.get_shape().as_list(), tf.abs(sim), [2,1,10,10], delta=1e-2)
-            self.assertNDArrayNear(numeric, computed, 1e-4)
+            self.assertAllClose(computed, numeric, atol=1e-3, rtol=1e-2)
 
     def test_gradient_weights_l2(self):
         with self.test_session():
@@ -181,8 +181,8 @@ class SimilarityTests(tf.test.TestCase):
             with tf.device('/cpu:0'):
                 sim = similarity(images, templates, weights, ksize=[3,3], strides=[2,2], padding=[1,1],
                                  similarity_function='L2')
-            computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
-            self.assertNDArrayNear(numeric, computed, 1e-4)
+            computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_sum(sim), [1], delta=1e-3)
+            self.assertAllClose(computed, numeric, atol=1e-3, rtol=1e-2)
 
     def test_gradient_weights_l1(self):
         with self.test_session():
@@ -199,13 +199,23 @@ class SimilarityTests(tf.test.TestCase):
             templates = tf.constant(templates)
 
             with tf.device('/cpu:0'):
-                sim = similarity(images, templates, weights, ksize=[3,3], strides=[2,2], padding=[1,1],
+                sim = similarity(images, templates, weights, ksize=[3,3], strides=[2,2], padding=[1, 1],
                                  similarity_function='L1')
             computed, numeric = tf.test.compute_gradient(weights, weights.get_shape().as_list(), tf.reduce_mean(sim), [1], delta=1e-3)
-            self.assertNDArrayNear(numeric, computed, 1e-4)
+            self.assertAllClose(computed, numeric, rtol=1e-4, atol=1e-3)
 
 
 #def get_mex_offsets_dims(input, num_instances, blocks, padding,
+
+def dirichlet_init(shape):
+    num_regions, num_instances, block_c, block_h, block_w = shape
+    k = block_c * block_h * block_w
+    # when given s as a size argument dirichlet function return an array with shape s + [k]
+    # then we reshape the output to be of the same shape as the variable
+    init_np = np.random.dirichlet([1.0] * k, size=(num_regions, num_instances))
+    init_np = np.log(init_np)
+    init_np = init_np.reshape(shape)
+    return init_np
 
 class MexTests(tf.test.TestCase):
 
@@ -264,17 +274,17 @@ class MexTests(tf.test.TestCase):
                     m_ref = _mex_ref(*args, **kwargs)
                     mnp = m.eval()
                     mrnp = m_ref.eval()
-                    self.assertAllClose(mnp, mrnp, 1e-2)
+                    self.assertAllClose(mnp, mrnp, rtol=1e-3, atol=1e-3)
 
     def _run_grad_test(self, tests_dict, kind='input'):
         all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
         for idx, tst in enumerate(all_tests):
             with self.subTest(**tst):
-                with self.test_session():
+                with self.test_session() as sess:
                     tst['blocks'][0] = min(tst['blocks'][0], tst['im_dims'][1])
-                    images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
+                    images_np = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
                     #images = np.ones(tst['im_dims'], tst['dtype'])
-                    images = tf.constant(images)
+                    images = tf.constant(images_np)
 
                     nregions = _mex_dims_helper(tst['im_dims'][1:], tst['num_instances'], blocks=tst['blocks'],
                                                padding=tst['padding'], strides=tst['strides'],
@@ -282,24 +292,28 @@ class MexTests(tf.test.TestCase):
                                                shared_offset_region=tst['shared_offset_region'],
                                                unshared_offset_region=tst['unshared_offset_region'])
                     params_dim = (nregions, tst['num_instances']) + tuple(tst['blocks'])
-                    offsets = np.random.normal(size=params_dim).astype(tst['dtype'])
-                    #offsets = np.ones(params_dim, tst['dtype'])
-                    offsets = tf.constant(offsets)
+                    offsets_np = -np.abs(np.random.normal(size=params_dim).astype(tst['dtype']))
+                    offsets_np = dirichlet_init(params_dim).astype(tst['dtype'])
+                    #offsets_np = np.ones(params_dim, tst['dtype'])
+                    offsets = tf.constant(offsets_np)
 
                     args = (images, offsets)
                     kwargs = dict(strides=tst['strides'],
                                   padding=tst['padding'], num_instances=tst['num_instances'],
-                                  softmax_mode=tst['softmax_mode'],
+                                  softmax_mode=tst['softmax_mode'], blocks=tst['blocks'],
                                   use_unshared_regions=tst['use_unshared_regions'],
                                   shared_offset_region=tst['shared_offset_region'],
                                   unshared_offset_region=tst['unshared_offset_region'])
+                    atol = 1e-1 if tst['dtype'] == np.float32 else 1e-3
                     with tf.device(tst['device']):
                         m = mex(*args, **kwargs)
                         if kind == 'input':
-                            computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_mean(m), [1], delta=1e-3)
+                            computed, numeric = tf.test.compute_gradient(images, images.get_shape().as_list(), tf.reduce_sum(m),
+                                                                         [1], delta=1e-2, x_init_value=images_np)
                         else:
-                            computed, numeric = tf.test.compute_gradient(offsets, offsets.get_shape().as_list(), tf.reduce_mean(m), [1], delta=1e-3)
-                    self.assertAllClose(computed, numeric, 1e-2)
+                            computed, numeric = tf.test.compute_gradient(offsets, offsets.get_shape().as_list(), tf.reduce_sum(m),
+                                                                         [1], delta=1e-2, x_init_value=offsets_np)
+                    self.assertAllClose(computed, numeric, rtol=1e-2, atol=atol)
 
     def test_reference_dimensions_shared(self):
         tests_dict = {
@@ -335,22 +349,22 @@ class MexTests(tf.test.TestCase):
         tests_dict = {
             'strides': [[1,1,2]],
             'im_dims': [(2,3,12,13)],
-            'dtype': [np.float64],
+            'dtype': [np.float64, np.float32],
             'num_instances': [2],
             'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[3,3,1]],
             'padding': [[0,1,0]],
             'softmax_mode': [True],
             'use_unshared_regions': [True, False],
-            'shared_offset_region': [[1,5,4], [2]],
-            'unshared_offset_region': [[1,5,4], [2]]}
+            'shared_offset_region': [[1,5,4], [-1]],
+            'unshared_offset_region': [[1,5,4], [-1]]}
         self._run_grad_test(tests_dict, kind='input')
 
     def test_gradient_offsets(self):
         tests_dict = {
             'strides': [[1,1,2]],
             'im_dims': [(2,3,12,13)],
-            'dtype': [np.float64],
+            'dtype': [np.float64, np.float32],
             'num_instances': [2],
             'device': ['/cpu:0', '/gpu:0'],
             'blocks': [[3,3,1]],
@@ -359,6 +373,21 @@ class MexTests(tf.test.TestCase):
             'use_unshared_regions': [True, False],
             'shared_offset_region': [[1,5,4], [2], [-1]],
             'unshared_offset_region': [[1,5,4], [2]]}
+        self._run_grad_test(tests_dict, kind='offsets')
+
+    def test_gradient_offsets_blocks_bug(self):
+        tests_dict = {
+            'strides': [[1,1,2]],
+            'im_dims': [(2,3,16,16)],
+            'dtype': [np.float64],
+            'num_instances': [2],
+            'device': ['/gpu:0'],
+            'blocks': [[3,8,8]],
+            'padding': [[0,4,4]],
+            'softmax_mode': [True],
+            'use_unshared_regions': [True],
+            'shared_offset_region': [[3, 3, 3]],
+            'unshared_offset_region': [[2]]}
         self._run_grad_test(tests_dict, kind='offsets')
 
 if __name__ == '__main__':

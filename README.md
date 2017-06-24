@@ -23,7 +23,7 @@ python -c 'import tensorflow as tf'
 To build the project type the following commands:<BR/>
  Python 2.7:<BR/>
  ```
- git clone https://github.com/HUJI-Deep/simnets-tf.git
+ git clone --recursive https://github.com/HUJI-Deep/simnets-tf.git
  cd simnets-tf
  mkdir build
  cd build
@@ -33,7 +33,7 @@ To build the project type the following commands:<BR/>
  
  Python 3.5:<BR/>
   ```
-  git clone https://github.com/HUJI-Deep/simnets-tf.git
+  git clone --recursive https://github.com/HUJI-Deep/simnets-tf.git
   cd simnets-tf
   mkdir build
   cd build

@@ -13,14 +13,16 @@ from .ops import similarity as _similarity
 from .ops.mex import _mex_dims_helper, mex as _mex, _expand_dim_specification
 from .unsupervised import similarity_unsupervised_init as _similarity_unsupervised_init
 from .unsupervised.pca import pca_unsupervised_init as _pca_unsupervised_init
+from keras.utils.generic_utils import get_custom_objects as _get_custom_objects
 
 
 class Similarity(Layer):
 
-    def __init__(self, num_instances, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
+    def __init__(self, num_instances=None, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
                  normalization_term=False, normalization_term_fudge=0.001, ignore_nan_input=False,
                  out_of_bounds_value=0, templates_initializer='random_normal', weights_initializer='ones', **kwargs):
         super(Similarity, self).__init__(**kwargs)
+        assert(num_instances is not None)
         self.num_instances = num_instances
         self.similarity_function = similarity_function
         self.strides = strides
@@ -63,29 +65,45 @@ class Similarity(Layer):
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
 
+    def get_config(self):
+        config_names = ['num_instances', 'similarity_function', 'strides',
+                        'ksize', 'padding', 'normalization_term',
+                        'normalization_term_fudge', 'ignore_nan_input', 'out_of_bounds_value',
+                        'templates_initializer', 'weights_initializer']
+        d = {k: getattr(self, k) for k in config_names}
+        return d
 
-def dirichlet_init(alpha=1.0):
-    def _dirichlet_init(shape, dtype=None):
+
+class DirichletInit(keras.initializers.Initializer):
+    def __init__(self, alpha=1.0):
+        self.alpha = alpha
+
+    def __call__(self, shape, dtype=None):
         if dtype is None:
             dtype = K.floatx()
         num_regions, num_instances, block_c, block_h, block_w = shape
         k = block_c * block_h * block_w
         # when given s as a size argument dirichlet function return an array with shape s + [k]
         # then we reshape the output to be of the same shape as the variable
-        init_np = np.random.dirichlet([alpha] * k, size=(num_regions, num_instances)).astype(dtype)
+        init_np = np.random.dirichlet([self.alpha] * k, size=(num_regions, num_instances)).astype(dtype)
         init_np = np.log(init_np)
         init_np = init_np.reshape(shape)
         return tf.constant(init_np)
-    return _dirichlet_init
+
+    def get_config(self):
+        return {'alpha': self.alpha}
+
+dirichlet_init = DirichletInit
 
 
 class Mex(Layer):
 
-    def __init__(self, num_instances, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
+    def __init__(self, num_instances=None, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
                  epsilon=1.0, use_unshared_regions=True, shared_offset_region=[-1],
                  unshared_offset_region=[-1], softmax_mode=False, blocks_out_of_bounds_value=0.0,
                  blocks_round_down=True, normalize_offsets=False, offsets_initializer=dirichlet_init(), **kwargs):
         super(Mex, self).__init__(**kwargs)
+        assert(num_instances is not None)
         self.num_instances = num_instances
         self.padding = padding
         self.strides = strides
@@ -98,6 +116,8 @@ class Mex(Layer):
         self.blocks_out_of_bounds_value = blocks_out_of_bounds_value
         self.blocks_round_down = blocks_round_down
         self.normalize_offsets = normalize_offsets
+        if isinstance(offsets_initializer, str) and offsets_initializer == 'dirichlet':
+            offsets_initializer = dirichlet_init()
         self.offsets_initializer = offsets_initializer
 
     def build(self, input_shape):
@@ -141,6 +161,13 @@ class Mex(Layer):
 
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
+
+    def get_config(self):
+        config_names = ['num_instances', 'padding', 'strides', 'blocks',
+                        'epsilon', 'use_unshared_regions', 'shared_offset_region',
+                        'unshared_offset_region', 'softmax_mode', 'blocks_out_of_bounds_value',
+                        'blocks_round_down', 'normalize_offsets', 'offsets_initializer']
+        return {k: getattr(self, k) for k in config_names}
 
 
 def perform_unsupervised_init(model, kind='gmm', layers=[], data=None, batch_size=None):
@@ -192,3 +219,7 @@ def perform_unsupervised_init(model, kind='gmm', layers=[], data=None, batch_siz
             session.run(u_assign, feed_dict=fd)
         print()
 
+
+_get_custom_objects().update({'Similarity': Similarity,
+                              'Mex': Mex,
+                              'DirichletInit': DirichletInit})

@@ -3,6 +3,26 @@ from tensorflow.contrib.factorization import KMeans
 
 
 def kmeans_unsupervised_init(sim_op, templates_var, weights_var):
+    """Initialize a similarity layer using k-means unsupervised learning
+
+    Initializes the templates using k-means.
+    The function returns two ops. The first is used to initialize the learning and the second should be run iteratively
+     with all the data.
+
+    Parameters
+    ----------
+    sim_op : tf.Operation | tf.Tensor
+        the similarity operation (or the tensor which is the output of the similarity)
+    templates_var : tf.Variable
+        the templates variable for this similarity layer
+    weights_var : tf.Variable
+        the weights variable for this similarity layer
+
+    Returns
+    -------
+    A tuple (init_op, update_op) where init_op must be executed by a session before using the update op
+    and the update_op is the operation that performs the learning.
+    """
     if isinstance(sim_op, tf.Tensor):
         sim_op = sim_op.op
     if not sim_op.type == 'Similarity':

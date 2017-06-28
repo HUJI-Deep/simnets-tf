@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-class RunningAverage(object):
+class _RunningAverage(object):
 
     def __init__(self, shape, dtype):
         self.n = tf.get_variable('pca_n', shape=[], dtype=tf.int64, initializer=tf.zeros_initializer)
@@ -32,7 +32,25 @@ class RunningAverage(object):
         return self.m
 
 
-def pca_unsupervised_init(conv_op, filters_var):
+def pca_unsupervised_init(conv_op, ):
+    """Initialize a convolutional layer using pca unsupervised learning
+
+    Initializes the filters as the first k eigen vectors of the data covariance.
+    The function returns two ops. The first is used to initialize the learning and the second should be run iteratively
+     with all the data.
+
+    Parameters
+    ----------
+    conv_op : tf.Operation | tf.Tensor
+        the convolution operation (or the tensor which is the output of the convolution)
+    filters_var : tf.Variable
+        the filters variable for this convolution layer
+
+    Returns
+    -------
+    A tuple (init_op, update_op) where init_op must be executed by a session before using the update op
+    and the update_op is the operation that performs the learning.
+    """
     if isinstance(conv_op, tf.Tensor):
         conv_op = conv_op.op
     if not conv_op.type == 'Conv2D':
@@ -45,9 +63,9 @@ def pca_unsupervised_init(conv_op, filters_var):
             filter_height, filter_width, in_channels, out_channels = filters_var.get_shape().as_list()
             single_filter_size = filter_height * filter_width * in_channels
             with tf.variable_scope('mu'):
-                mu_manager = RunningAverage([single_filter_size], filters_var.dtype)
+                mu_manager = _RunningAverage([single_filter_size], filters_var.dtype)
             with tf.variable_scope('sigma'):
-                sigma_manager = RunningAverage([single_filter_size, single_filter_size], filters_var.dtype)
+                sigma_manager = _RunningAverage([single_filter_size, single_filter_size], filters_var.dtype)
 
             ninstances = out_channels
 

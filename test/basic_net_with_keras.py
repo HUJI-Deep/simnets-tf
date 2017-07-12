@@ -71,7 +71,7 @@ if True:
     #     normalized = add([x, tile])
     #     return normalized, norm
 
-    def sum_pooling_layer(x, pool_size=(2, 2)):
+    def sum_pooling_layer(x, pool_size):
         # Average pooling doesn't take padding area into consideration when using padding='same'
         # If we wish to add padding, we must do so externally with ZeroPadding2D so we would
         # be able to compute the sum pooling layer from the average pooling layer.
@@ -98,7 +98,7 @@ if True:
         weights_initializer= tf.constant_initializer(weights['sim_weights'])
     else:
         templates_initializer = 'random_normal'
-        weights_initializer = tf.constant_initializer(100)
+        weights_initializer = keras.initializers.constant(100)
     b = sk.Similarity(sim_channels,
                       ksize=[2, 2], strides=[2, 2], similarity_function='L2',
                       normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True,
@@ -115,7 +115,7 @@ if True:
                    blocks=[int(b.shape[-3]), 1, 1], strides=[int(b.shape[-3]), 1, 1],
                    softmax_mode=True, normalize_offsets=True,
                    use_unshared_regions=True, unshared_offset_region=[unshared],
-                   offsets_initializer=tf.constant_initializer(weights['mex' + str(i+1)]))(b)
+                   offsets_initializer='dirichlet')(b)
         b = sum_pooling_layer(b, pool_size=(2, 2))
         # b_norm = sum_pooling_layer(b_norm, pool_size=(2, 2))
         # if last_norm is None:
@@ -130,7 +130,7 @@ if True:
                blocks=[mex_channels, 1, 1], strides=[mex_channels, 1, 1],
                softmax_mode=True, normalize_offsets=True,
                use_unshared_regions=True, shared_offset_region=[1],
-               offsets_initializer=tf.constant_initializer(weights['mex5']))(b)
+               offsets_initializer='dirichlet')(b)
     b = Flatten()(b)
     model = Model(inputs=[a], outputs=[b])
 
@@ -145,8 +145,8 @@ if True:
     callbacks=[TensorBoard(log_dir='log', histogram_freq=1, write_graph=True, write_images=False,
                            write_grads=True)]
 
-    # sk.perform_unsupervised_init(model, 'kmeans', layers=None, data=x_train, batch_size=100)
-
+    sk.perform_unsupervised_init(model, 'kmeans', layers=None, data=x_train, batch_size=100)
+    keras.models.save_model(model, '/home/elhanani/tmp/model.hd5')
     model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=epochs,

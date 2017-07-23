@@ -340,42 +340,7 @@ template<typename T> __device__ __host__ __forceinline__ typename vec<T>::vec3 m
 template<typename T> __device__ __host__ __forceinline__ typename vec<T>::vec4 make_vec4(T x, T y, T z, T w) {
     return typename vec<T>::vec4(x, y, z, w);
 }
-// template<> __device__ __host__ __forceinline__ vec<int>::vec2 make_vec2(int x, int y) {
-//     return make_int2(x, y);
-// }
-// template<> __device__ __host__ __forceinline__ vec<long>::vec2 make_vec2(long x, long y) {
-//     return make_long2(x, y);
-// }
-// template<> __device__ __host__ __forceinline__ vec<float>::vec2 make_vec2(float x, float y) {
-//     return make_float2(x, y);
-// }
-// template<> __device__ __host__ __forceinline__ vec<double>::vec2 make_vec2(double x, double y) {
-//     return make_double2(x, y);
-// }
-// template<> __device__ __host__ __forceinline__ vec<int>::vec3 make_vec3(int x, int y, int z) {
-//     return make_int3(x, y, z);
-// }
-// template<> __device__ __host__ __forceinline__ vec<long>::vec3 make_vec3(long x, long y, long z) {
-//     return make_long3(x, y, z);
-// }
-// template<> __device__ __host__ __forceinline__ vec<float>::vec3 make_vec3(float x, float y, float z) {
-//     return make_float3(x, y, z);
-// }
-// template<> __device__ __host__ __forceinline__ vec<double>::vec3 make_vec3(double x, double y, double z) {
-//     return (vec<double>::vec3){x,y,z};
-// }
-// template<> __device__ __host__ __forceinline__ vec<int>::vec4 make_vec4(int x, int y, int z, int w) {
-//     return make_int4(x, y, z, w);
-// }
-// template<> __device__ __host__ __forceinline__ vec<long>::vec4 make_vec4(long x, long y, long z, long w) {
-//     return make_long4(x, y, z, w);
-// }
-// template<> __device__ __host__ __forceinline__ vec<float>::vec4 make_vec4(float x, float y, float z, float w) {
-//     return make_float4(x, y, z, w);
-// }
-// template<> __device__ __host__ __forceinline__ vec<double>::vec4 make_vec4(double x, double y, double z, double w) {
-//     return (vec<double>::vec4){x,y,z,w};
-// }
+
 
 template<typename Dtype, typename Ptype> __device__ __host__ __forceinline__
 Dtype no_op(Dtype a, Ptype nothing) {
@@ -441,30 +406,10 @@ typename vec<Dtype>::vec4 add_vec4(typename vec<Dtype>::vec4 a, typename vec<Dty
     return make_vec4<Dtype>(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
 }
 
-template<typename Dtype, typename Ptype, Dtype (*APPLY_F)(Dtype, Ptype)>
-void caffe_cpu_array_func(const int n, const Ptype param, const Dtype* x, Dtype* y) {
-    for (int i = 0; i < n; ++i) {
-        y[i] = APPLY_F(x[i], param);
-    }
-}
-template<typename Dtype, typename Ptype, Dtype (*APPLY_F)(Dtype, Dtype, Ptype)>
-void caffe_cpu_array_func(const int n, const Ptype param, const Dtype* x1, const Dtype* x2, Dtype* y) {
-    for (int i = 0; i < n; ++i) {
-        y[i] = APPLY_F(x1[i], x2[i], param);
-    }
-}
-
 template <typename Dtype> void interlace_cpu(const int N, const Dtype* a, const Dtype* b, typename vec<Dtype>::vec2* o) {
     for (int i = 0; i < N; ++i)
     {
         o[i] = make_vec2<Dtype>(a[i], b[i]);
-    }
-}
-template <typename Dtype> void interlace_cpu(const int N,
-                                             const Dtype* a, const Dtype* b, const Dtype* c, const Dtype* d, typename vec<Dtype>::vec4* o) {
-    for (int i = 0; i < N; ++i)
-    {
-        o[i] = make_vec4<Dtype>(a[i], b[i], c[i], d[i]);
     }
 }
 
@@ -476,16 +421,6 @@ template <typename Dtype> void deinterlace_cpu(const int N,
         a[i] = data.x;
         b[i] = data.y;
     }
-}
-
-template <class Dtype> float print_type(typename std::enable_if<std::is_arithmetic<Dtype>::value, Dtype>::type t) {
-    return t;
-}
-template <class Dtype> float print_type(typename std::enable_if<std::is_same<Dtype, vec<float>::vec2>::value, Dtype>::type t) {
-    return t.x;
-}
-template <class Dtype> float print_type(typename std::enable_if<std::is_same<Dtype, vec<double>::vec2>::value, Dtype>::type t) {
-    return t.x;
 }
 
 enum {
@@ -797,24 +732,6 @@ Dtype mex_backward_offsets_infinite(typename vec<Dtype>::vec2 top_data, Dtype da
 }
 
 template<typename Dtype> __device__ __host__ __forceinline__
-Dtype mex_backward_normalized_offsets_finite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
-                                             typename vec<Dtype>::vec2 extra) {
-    const Dtype res = mex_backward_offsets_finite(top_data, data, offset, extra);
-#ifdef __CUDA_ARCH__
-    return res - top_data.y * EXP_CUDA(extra.x * offset + extra.y);
-#else
-    return res - top_data.y * std::exp(extra.x * offset + extra.y);
-#endif
-}
-
-template<typename Dtype> __device__ __host__ __forceinline__
-Dtype mex_backward_normalized_offsets_infinite(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
-                                               uint8_t nothing) {
-    const Dtype res = mex_backward_offsets_infinite(top_data, data, offset, nothing);
-    return res - top_data.y * (offset == Dtype(0));
-}
-
-template<typename Dtype> __device__ __host__ __forceinline__
 Dtype mex_backward_epsilon(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
                            Dtype epsilon) {
     const Dtype x = data + offset;
@@ -825,23 +742,8 @@ Dtype mex_backward_epsilon(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype
 #endif
 }
 
-template<typename Dtype> __device__ __host__ __forceinline__
-Dtype mex_backward_epsilon_with_normalized_offsets(typename vec<Dtype>::vec2 top_data, Dtype data, Dtype offset,
-                                                   Dtype epsilon) {
-    const Dtype res = mex_backward_epsilon(top_data, data, offset, epsilon);
-#ifdef __CUDA_ARCH__
-    return res - top_data.y * offset * EXP_CUDA(epsilon * offset);
-#else
-    return res - top_data.y * offset * std::exp(epsilon * offset);
-#endif
-}
-
 
 // Backward weights
-    template<typename Dtype> __forceinline__ __device__ __host__
-    typename vec<Dtype>::vec2 sim_linear_backward_weights(Dtype err, Dtype x, typename vec<Dtype>::vec2 p, uint8_t nothing) {
-        return make_vec2<Dtype>(err * x * p.y, err * x * p.x);
-    }
     template<typename Dtype> __forceinline__ __device__ __host__
     typename vec<Dtype>::vec2 sim_l1_backward_weights(Dtype err, Dtype x, typename vec<Dtype>::vec2 p, uint8_t nothing) {
         return make_vec2<Dtype>(err * p.y * sign<Dtype>(x - p.x), - err * std::abs(x - p.x));
@@ -881,11 +783,6 @@ Dtype mex_backward_epsilon_with_normalized_offsets(typename vec<Dtype>::vec2 top
     }
 
 // Backwaro bottom
-    template<typename Dtype> __forceinline__ __device__ __host__
-    Dtype sim_linear_backward_bottom(typename vec<Dtype>::vec2 p, Dtype err,
-                                     Dtype data, uint8_t nothing) {
-        return err * p.x * p.y;
-    }
     template<typename Dtype> __forceinline__ __device__ __host__
     Dtype sim_l1_backward_bottom(typename vec<Dtype>::vec2 p, Dtype err,
                                  Dtype data, uint8_t nothing) {

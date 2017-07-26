@@ -20,7 +20,8 @@ class Similarity(Layer):
 
     def __init__(self, num_instances=None, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
                  normalization_term=False, normalization_term_fudge=0.001, ignore_nan_input=False,
-                 out_of_bounds_value=0, templates_initializer='random_normal', weights_initializer='ones', **kwargs):
+                 out_of_bounds_value=0, templates_initializer='random_normal', weights_initializer='ones',
+                 channels_last=False, **kwargs):
         super(Similarity, self).__init__(**kwargs)
         assert(num_instances is not None)
         self.num_instances = num_instances
@@ -39,28 +40,38 @@ class Similarity(Layer):
         self.out_of_bounds_value = out_of_bounds_value
         self.templates_initializer = templates_initializer
         self.weights_initializer = weights_initializer
+        self.channels_last = channels_last
 
     def build(self, input_shape):
         # Create a trainable weight variable for this layer.
+        if self.channels_last:
+            num_channels = input_shape[3]
+        else:
+            num_channels = input_shape[1]
         self.sweights = self.add_weight(name='weights',
-                                        shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
+                                        shape=(self.num_instances, num_channels, self.ksize[0], self.ksize[1]),
                                         trainable=True,
                                         initializer=self.weights_initializer)
         self.templates = self.add_weight(name='templates',
-                                         shape=(self.num_instances, input_shape[1], self.ksize[0], self.ksize[1]),
+                                         shape=(self.num_instances, num_channels, self.ksize[0], self.ksize[1]),
                                          initializer=self.templates_initializer,
                                          trainable=True)
 
         super(Similarity, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, x):
+        if self.channels_last:
+            x = tf.transpose(x, [0, 3, 1, 2])
         self.op = _similarity(x, self.templates, tf.abs(self.sweights), similarity_function=self.similarity_function,
                               ksize=self.ksize,
                               strides=self.strides, padding=self.padding,
                               normalization_term=self.normalization_term,
                               normalization_term_fudge=self.normalization_term_fudge,
                               ignore_nan_input=self.ignore_nan_input, out_of_bounds_value=self.out_of_bounds_value)
-        return self.op
+        if self.channels_last:
+            return tf.transpose(self.op, [0, 2, 3, 1])
+        else:
+            return self.op
 
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
@@ -69,7 +80,7 @@ class Similarity(Layer):
         config_names = ['num_instances', 'similarity_function', 'strides',
                         'ksize', 'padding', 'normalization_term',
                         'normalization_term_fudge', 'ignore_nan_input', 'out_of_bounds_value',
-                        'templates_initializer', 'weights_initializer']
+                        'templates_initializer', 'weights_initializer', 'channels_last']
         d = {k: getattr(self, k) for k in config_names}
         return d
 
@@ -101,7 +112,8 @@ class Mex(Layer):
     def __init__(self, num_instances=None, padding=[0, 0, 0], strides=[1, 1, 1], blocks=[1, 1, 1],
                  epsilon=1.0, use_unshared_regions=True, shared_offset_region=[-1],
                  unshared_offset_region=[-1], softmax_mode=False, blocks_out_of_bounds_value=0.0,
-                 blocks_round_down=True, normalize_offsets=False, offsets_initializer=dirichlet_init(), **kwargs):
+                 blocks_round_down=True, normalize_offsets=False, offsets_initializer=dirichlet_init(),
+                 channels_last=False, **kwargs):
         super(Mex, self).__init__(**kwargs)
         assert(num_instances is not None)
         self.num_instances = num_instances
@@ -119,6 +131,7 @@ class Mex(Layer):
         if isinstance(offsets_initializer, str) and offsets_initializer == 'dirichlet':
             offsets_initializer = dirichlet_init()
         self.offsets_initializer = offsets_initializer
+        self.channels_last = channels_last
 
     def build(self, input_shape):
         # first we resolve the blocks dimension using the image shape
@@ -149,6 +162,8 @@ class Mex(Layer):
         super(Mex, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, x):
+        if self.channels_last:
+            x = tf.transpose(x, [0, 3, 1, 2])
         self.op = _mex(x, self.offsets, self.num_instances, blocks=self.blocks, padding=self.padding,
                        strides=self.strides, use_unshared_regions=self.use_unshared_regions,
                        shared_offset_region=self.shared_offset_region,
@@ -157,7 +172,10 @@ class Mex(Layer):
                        unshared_offset_region=self.unshared_offset_region,
                        epsilon=self.epsilon,
                        softmax_mode=self.softmax_mode)
-        return self.op
+        if self.channels_last:
+            return tf.transpose(self.op, [0, 2, 3, 1])
+        else:
+            return self.op
 
     def compute_output_shape(self, input_shape):
         return tuple(self.op.get_shape().as_list())
@@ -166,7 +184,7 @@ class Mex(Layer):
         config_names = ['num_instances', 'padding', 'strides', 'blocks',
                         'epsilon', 'use_unshared_regions', 'shared_offset_region',
                         'unshared_offset_region', 'softmax_mode', 'blocks_out_of_bounds_value',
-                        'blocks_round_down', 'normalize_offsets', 'offsets_initializer']
+                        'blocks_round_down', 'normalize_offsets', 'offsets_initializer', 'channels_last']
         return {k: getattr(self, k) for k in config_names}
 
 

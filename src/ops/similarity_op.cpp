@@ -73,6 +73,7 @@ REGISTER_OP("Similarity")
         .Attr("ignore_nan_input: bool = false")
         .Attr("out_of_bounds_value: float = 0.0")
         .SetShapeFn(SimilarityShape);
+// TODO: Address channels_first in documentation
 //      .Doc(R"doc(
 // Performs sum pooling on the input.
 // Each entry in `output` is the sum of the corresponding size `ksize`

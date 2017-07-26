@@ -72,6 +72,7 @@ REGISTER_OP("Mex")
         .Attr("shared_offset_region: list(int) = [-1]")
         .Attr("unshared_offset_region: list(int) = [-1]")
         .SetShapeFn(MexShape);
+// TODO: Address channels_first in documentation
 //      .Doc(R"doc(
 // Performs sum pooling on the input.
 // Each entry in `output` is the sum of the corresponding size `ksize`

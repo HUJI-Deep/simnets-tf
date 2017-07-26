@@ -145,6 +145,40 @@ class SimilarityTests(tf.test.TestCase):
                       'kind': ['weights', 'templates', 'input']}
         self._run_grad_test(tests_dict)
 
+    def test_gradient_attributes(self):
+        images = np.random.normal(size=(2, 3, 50, 31)).astype(np.float32)
+        images = tf.constant(images)
+
+        params_dim = (1, 3, 3, 2)
+        weights = np.absolute(np.random.normal(size=params_dim).astype(np.float32))
+        weights = tf.constant(weights)
+
+        templates = np.random.normal(size=params_dim).astype(np.float32)
+        templates = tf.constant(templates)
+        args = (images, templates, weights)
+        kwargs = dict(ksize=[3, 2], strides=[1, 2],
+                      padding=[0, 1], normalization_term=True,
+                      ignore_nan_input=True, similarity_function='L1',
+                      normalization_term_fudge=1e-1,
+                      out_of_bounds_value=1.0)
+        sim = similarity(*args, **kwargs)
+
+        grad_input, = tf.gradients(tf.reduce_sum(sim), images)
+        grad_templates, = tf.gradients(tf.reduce_sum(sim), templates)
+        grad_weights, = tf.gradients(tf.reduce_sum(sim), weights)
+
+        for grad in [grad_input, grad_templates, grad_weights]:
+            op = grad.op  # type: tf.Operation
+            self.assertEqual(op.get_attr('ksize'), [3, 2])
+            self.assertEqual(op.get_attr('strides'), [1, 2])
+            self.assertEqual(op.get_attr('padding'), [0, 1])
+            self.assertEqual(op.get_attr('normalization_term'), True)
+            self.assertEqual(op.get_attr('ignore_nan_input'), True)
+            self.assertEqual(op.get_attr('similarity_function'), b'L1')
+            self.assertNear(op.get_attr('normalization_term_fudge'), 1e-1, 0.001)
+            self.assertEqual(op.get_attr('out_of_bounds_value'), 1.0)
+
+
 
 def dirichlet_init(shape):
     num_regions, num_instances, block_c, block_h, block_w = shape
@@ -328,6 +362,36 @@ class MexTests(tf.test.TestCase):
             'shared_offset_region': [[3, 3, 3]],
             'unshared_offset_region': [[2]]}
         self._run_grad_test(tests_dict, kind='offsets')
+
+    def test_gradient_attributes(self):
+        images_np = np.random.normal(size=(5,1,90,90)).astype(np.float64)
+        images = tf.constant(images_np)
+
+        nregions = _mex_dims_helper([1, 90, 90], 3, blocks=[1,3,3], padding=[0, 1, 1], strides=[1, 2, 2])
+        offsets_np = np.random.normal(size=(nregions, 3, 1, 3, 3)).astype(np.float64)
+        offsets = tf.constant(offsets_np)
+
+        m = mex(images, offsets, num_instances=3, softmax_mode=True, padding=[0, 1, 1],
+                strides=[1, 2, 2], blocks=[1, 3, 3], epsilon=2.0, blocks_out_of_bounds_value=1.0,
+                blocks_round_down=False, use_unshared_regions=False, shared_offset_region=[2],
+                unshared_offset_region=[4,4])
+
+        grad_input, = tf.gradients(tf.reduce_sum(m), images)
+        grad_offsets, = tf.gradients(tf.reduce_sum(m), offsets)
+
+        for grad in [grad_input, grad_offsets]:
+            op = grad.op  # type: tf.Operation
+            self.assertEqual(op.get_attr('num_instances'), 3)
+            self.assertEqual(op.get_attr('padding'), [0, 1, 1])
+            self.assertEqual(op.get_attr('strides'), [1, 2, 2])
+            self.assertEqual(op.get_attr('blocks'), [1, 3, 3])
+            self.assertEqual(op.get_attr('epsilon'), 2.0)
+            self.assertEqual(op.get_attr('use_unshared_regions'), False)
+            self.assertEqual(op.get_attr('shared_offset_region'), [2])
+            self.assertEqual(op.get_attr('unshared_offset_region'), [4, 4])
+            self.assertEqual(op.get_attr('softmax_mode'), True)
+            self.assertEqual(op.get_attr('blocks_out_of_bounds_value'), 1.0)
+            self.assertEqual(op.get_attr('blocks_round_down'), False)
 
 if __name__ == '__main__':
     tf.test.main()

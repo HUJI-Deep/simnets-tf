@@ -8,6 +8,7 @@
 #include "kernels/similarity_kernel_common.hpp"
 #include "utils/im2col.hpp"
 #include "utils/ggemm.cuh"
+#include "utils/similarity_utils.hpp"
 
 using namespace tensorflow;
 

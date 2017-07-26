@@ -4,6 +4,7 @@
 
 #include "kernels/mex_kernel_common.hpp"
 #include "utils/ggemm_cpu.hpp"
+#include "utils/mex_utils.hpp"
 
 
 using namespace tensorflow;

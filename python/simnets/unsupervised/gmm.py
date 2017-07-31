@@ -35,11 +35,11 @@ def gmm_unsupervised_init(sim_op, templates_var, weights_var):
         num_instances = templates_tensor.get_shape().as_list()[0]
 
         strides = sim_op.get_attr('strides')
-        blocks = sim_op.get_attr('ksize')
+        blocks = sim_op.get_attr('blocks')
         strides = [1, strides[0], strides[1], 1]
         blocks = [1, blocks[0], blocks[1], 1]
         patches = tf.extract_image_patches(tf.transpose(input_tensor, (0, 2, 3, 1)), strides=strides,
-                                           ksizes=blocks, rates=[1, 1, 1, 1], padding='VALID')
+                                           blocks=blocks, rates=[1, 1, 1, 1], padding='VALID')
         _, _, _, patch_size = patches.get_shape().as_list()
         patches = tf.reshape(patches, [-1, patch_size])
         _, _, _, training_op = _gmm(inp=patches, initial_clusters='random',

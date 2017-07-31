@@ -75,7 +75,7 @@ def pca_unsupervised_init(conv_op, ):
             if data_format == 'NCHW':
                 input_tensor = tf.transpose(input_tensor, (0, 2, 3, 1))
             patches = tf.extract_image_patches(input_tensor, strides=strides,
-                                               ksizes=blocks, rates=[1, 1, 1, 1], padding='VALID')
+                                               blocks=blocks, rates=[1, 1, 1, 1], padding='VALID')
             _, _, _, patch_size = patches.get_shape().as_list()
             patches = tf.reshape(patches, [-1, patch_size])
             mu_update = mu_manager.add(patches)

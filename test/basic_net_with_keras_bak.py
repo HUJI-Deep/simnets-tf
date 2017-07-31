@@ -68,12 +68,12 @@ with tf.device('/gpu:0'):
     tf.set_random_seed(1)
     a = Input(shape=(1, img_rows, img_cols))
     b = sk.Similarity(sim_channels,
-                     ksize=[2, 2], strides=[2, 2], similarity_function='L2',
+                     blocks=[2, 2], strides=[2, 2], similarity_function='L2',
                      normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True,
                      normalization_term_fudge=1e-4, templates_initializer=tf.constant_initializer(weights['sim_templates']),
                       weights_initializer=tf.constant_initializer(weights['sim_weights']))(a)
     # b = sk.Similarity(sim_channels,
-    #     ksize=[2, 2], strides=[2, 2], similarity_function='L2',
+    #     blocks=[2, 2], strides=[2, 2], similarity_function='L2',
     #     normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True)(a)#,
     #                  # templates_initializer=tf.constant_initializer(weights['sim_templates']),
     #                  # weights_initializer=tf.constant_initializer(weights['sim_weights']))(a)

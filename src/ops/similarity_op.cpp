@@ -14,8 +14,8 @@ Status SimilarityShape(shape_inference::InferenceContext* c) {
 
     std::vector<int32> strides;
     TF_RETURN_IF_ERROR(c->GetAttr("strides", &strides));
-    std::vector<int32> ksize;
-    TF_RETURN_IF_ERROR(c->GetAttr("ksize", &ksize));
+    std::vector<int32> blocks;
+    TF_RETURN_IF_ERROR(c->GetAttr("blocks", &blocks));
     std::vector<int32> padding;
     TF_RETURN_IF_ERROR(c->GetAttr("padding", &padding));
 
@@ -65,7 +65,7 @@ REGISTER_OP("Similarity")
         .Output("output: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [3,3]")
+        .Attr("blocks: list(int) = [3,3]")
         .Attr("strides: list(int) = [2,2]")
         .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
@@ -76,10 +76,10 @@ REGISTER_OP("Similarity")
 // TODO: Address channels_first in documentation
 //      .Doc(R"doc(
 // Performs sum pooling on the input.
-// Each entry in `output` is the sum of the corresponding size `ksize`
+// Each entry in `output` is the sum of the corresponding size `blocks`
 // window in `value`.
 // value: 4-D with shape `[batch, height, width, channels]`.
-// ksize: The size of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
+// blocks: The size of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
 // strides: The stride of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
 // padding: The type of padding algorithm to use.
 // output: The sum pooled output tensor.
@@ -92,7 +92,7 @@ REGISTER_OP("SimilarityRef")
         .Output("output: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [3,3]")
+        .Attr("blocks: list(int) = [3,3]")
         .Attr("strides: list(int) = [2,2]")
         .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
@@ -109,7 +109,7 @@ REGISTER_OP("SimilarityInputGrad")
         .Output("output: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [3,3]")
+        .Attr("blocks: list(int) = [3,3]")
         .Attr("strides: list(int) = [2,2]")
         .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")
@@ -127,7 +127,7 @@ REGISTER_OP("SimilarityParametersGrad")
         .Output("weights_grad: T")
         .Attr("T: {float32, float64}")
         .Attr("similarity_function: {'L1', 'L2'} = 'L2'")
-        .Attr("ksize: list(int) = [3,3]")
+        .Attr("blocks: list(int) = [3,3]")
         .Attr("strides: list(int) = [2,2]")
         .Attr("padding: list(int) = [0,0]")
         .Attr("normalization_term: bool = false")

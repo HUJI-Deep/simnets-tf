@@ -24,10 +24,10 @@ public:
 protected:
     /// @name patches specification
     /// output value at (i,j) corresponds to the block:<BR/>
-    ///    [i * strides[0] - padding_[0], [i * strides[0] - padding_[0] + ksize[0]]
-    ///       x [j * strides[1] - padding_[1], [i * strides[1] - padding_[1] + ksize[1]]
+    ///    [i * strides[0] - padding_[0], [i * strides[0] - padding_[0] + blocks[0]]
+    ///       x [j * strides[1] - padding_[1], [i * strides[1] - padding_[1] + blocks[1]]
     ///@{
-    std::vector<int> ksize_; //!< size of a block [h, w]
+    std::vector<int> blocks_; //!< size of a block [h, w]
     std::vector<int> stride_; //!< strides [stride_h, stride_w]
     std::vector<int> padding_; //!< padding in each dimension [padding_h, padding_w]
     ///@}
@@ -84,9 +84,9 @@ SimilarityKernelCommon::SimilarityKernelCommon(tensorflow::OpKernelConstruction 
     OP_REQUIRES_OK(context, context->GetAttr("padding", &padding_));
     OP_REQUIRES(context, padding_.size() == 2,
                 tensorflow::errors::InvalidArgument("padding must be a list with two elements"));
-    OP_REQUIRES_OK(context, context->GetAttr("ksize", &ksize_));
-    OP_REQUIRES(context, ksize_.size() == 2,
-                tensorflow::errors::InvalidArgument("ksize must be a list with two elements"));
+    OP_REQUIRES_OK(context, context->GetAttr("blocks", &blocks_));
+    OP_REQUIRES(context, blocks_.size() == 2,
+                tensorflow::errors::InvalidArgument("blocks must be a list with two elements"));
     OP_REQUIRES_OK(context, context->GetAttr("strides", &stride_));
     OP_REQUIRES(context, stride_.size() == 2,
                 tensorflow::errors::InvalidArgument("stride must be a list with two elements"));
@@ -129,8 +129,8 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     channels_ = input_t.dimension(C_DIM);
 
 
-    block_h_ = this->ksize_[0];
-    block_w_ = this->ksize_[1];
+    block_h_ = this->blocks_[0];
+    block_w_ = this->blocks_[1];
     block_c_ = channels_;
 
     stride_h_ = this->stride_[0];
@@ -140,8 +140,8 @@ void SimilarityKernelCommon::CalculateDimensions(tensorflow::OpKernelContext *co
     pad_h_ = padding_[0];
     pad_w_ = padding_[1];
 
-    out_h_ = simnets_tf::dimension_out_size(height_, pad_h_, ksize_[0], stride_[0], true);
-    out_w_ = simnets_tf::dimension_out_size(width_, pad_w_, ksize_[1], stride_[1], true);
+    out_h_ = simnets_tf::dimension_out_size(height_, pad_h_, blocks_[0], stride_[0], true);
+    out_w_ = simnets_tf::dimension_out_size(width_, pad_w_, blocks_[1], stride_[1], true);
 
     out_c_ = num_instances_;
     pad_c_ = 0;

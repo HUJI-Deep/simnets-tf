@@ -100,7 +100,7 @@ if True:
         templates_initializer = 'random_normal'
         weights_initializer = keras.initializers.constant(100)
     b = sk.Similarity(sim_channels,
-                      ksize=[2, 2], strides=[2, 2], similarity_function='L2',
+                      blocks=[2, 2], strides=[2, 2], similarity_function='L2',
                       normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True,
                       normalization_term_fudge=1e-4,
                       templates_initializer=templates_initializer,
@@ -140,12 +140,12 @@ if True:
         return K.categorical_crossentropy(y_pred, y_true, True)
 
     model.compile(loss=softmax_loss,
-                  optimizer=keras.optimizers.nadam(lr=1e-3, epsilon=1e-6),
+                  optimizer=keras.optimizers.nadam(lr=1e-2, epsilon=1e-6),
                   metrics=['accuracy'])#,
     callbacks=[TensorBoard(log_dir='log', histogram_freq=1, write_graph=True, write_images=False,
                            write_grads=True)]
 
-    sk.perform_unsupervised_init(model, 'kmeans', layers=None, data=x_train, batch_size=100)
+    #sk.perform_unsupervised_init(model, 'kmeans', layers=None, data=x_train, batch_size=100)
     keras.models.save_model(model, '/home/elhanani/tmp/model.hd5')
     model.fit(x_train, y_train,
               batch_size=batch_size,

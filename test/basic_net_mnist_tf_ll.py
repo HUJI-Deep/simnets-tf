@@ -30,7 +30,7 @@ def sum_pooling_layer(x, pool_size=(2, 2)):
     with tf.name_scope('sum_pool'):
         px, py = pool_size
         x = tf.transpose(x, [0, 2, 3, 1])
-        x = tf.nn.avg_pool(x, ksize=[1, px, py, 1], strides=[1, px, py, 1],
+        x = tf.nn.avg_pool(x, blocks=[1, px, py, 1], strides=[1, px, py, 1],
                            padding='SAME', name='avg_pool')
         x = tf.transpose(x, [0, 3, 1, 2])
         res = tf.multiply(np.float32(px * py), x, name='sum_pool')
@@ -53,7 +53,7 @@ def dirichlet_init(alpha=1.0):
         return tf.constant(init_np)
     return _dirichlet_init
 
-def similarity_layer(input, num_instances, similarity_function='L2', strides=[1,1], ksize=[3,3], padding='SAME',
+def similarity_layer(input, num_instances, similarity_function='L2', strides=[1,1], blocks=[3,3], padding='SAME',
                normalization_term=False, normalization_term_fudge=0.001, ignore_nan_input=False,
                out_of_bounds_value=0, templates_initializer=tf.random_normal_initializer(),
                weights_initializer=tf.constant_initializer(100), name='Similarity'):
@@ -61,18 +61,18 @@ def similarity_layer(input, num_instances, similarity_function='L2', strides=[1,
         if isinstance(padding, str):
             if padding.upper() not in ['SAME', 'VALID']:
                 raise ValueError('Padding must be one of SAME, VALID (or a list of ints)')
-            padding = [0, 0] if padding == 'VALID' else [e//2 for e in ksize]
+            padding = [0, 0] if padding == 'VALID' else [e//2 for e in blocks]
         input_shape = input.get_shape().as_list()
         with tf.name_scope('Similarity'):
             with tf.variable_scope('Similarity'):
-                weights = tf.get_variable('weights', shape=(num_instances, input_shape[1], ksize[0], ksize[1]),
+                weights = tf.get_variable('weights', shape=(num_instances, input_shape[1], blocks[0], blocks[1]),
                                           dtype=tf.float32, initializer=weights_initializer)
-                templates = tf.get_variable('templates', shape=(num_instances, input_shape[1], ksize[0], ksize[1]),
+                templates = tf.get_variable('templates', shape=(num_instances, input_shape[1], blocks[0], blocks[1]),
                                             dtype=tf.float32, initializer=templates_initializer)
             tf.summary.histogram('similarity/weights', weights)
             tf.summary.histogram('similarity/templates', templates)
             sim = similarity(input, templates, weights, similarity_function=similarity_function,
-                                  ksize=ksize,
+                                  blocks=blocks,
                                   strides=strides, padding=padding,
                                   normalization_term=normalization_term,
                                   normalization_term_fudge=normalization_term_fudge,
@@ -131,7 +131,7 @@ def create_net(input, labels):
     sim_channels = 32
     mex_channels = sim_channels
     net = similarity_layer(input, sim_channels,
-                     ksize=[2, 2], strides=[2, 2], similarity_function='L2',
+                     blocks=[2, 2], strides=[2, 2], similarity_function='L2',
                      normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True,
                      normalization_term_fudge=1e-4, name='sim')
     i = 0

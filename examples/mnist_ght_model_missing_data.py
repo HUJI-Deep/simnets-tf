@@ -80,7 +80,7 @@ def fixed_dirichlet_init(shape, dtype=None):
 
 a = Input(shape=(1, img_rows, img_cols))
 b = sk.Similarity(sim_channels,
-    ksize=[2, 2], strides=[2, 2], similarity_function='L2',
+    blocks=[2, 2], strides=[2, 2], similarity_function='L2',
     normalization_term=True, padding=[2, 2], out_of_bounds_value=np.nan, ignore_nan_input=True,
     normalization_term_fudge=1e-4, weights_initializer=keras.initializers.Constant(value=100))(a)
 i = 0

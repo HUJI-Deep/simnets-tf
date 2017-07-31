@@ -75,10 +75,10 @@ REGISTER_OP("Mex")
 // TODO: Address channels_first in documentation
 //      .Doc(R"doc(
 // Performs sum pooling on the input.
-// Each entry in `output` is the sum of the corresponding size `ksize`
+// Each entry in `output` is the sum of the corresponding size `blocks`
 // window in `value`.
 // value: 4-D with shape `[batch, height, width, channels]`.
-// ksize: The size of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
+// blocks: The size of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
 // strides: The stride of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
 // padding: The type of padding algorithm to use.
 // output: The sum pooled output tensor.

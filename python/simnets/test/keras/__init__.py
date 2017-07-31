@@ -59,9 +59,9 @@ class KerasMexTests(tf.test.TestCase):
             l1 = Mex(num_instances=3, padding='VALID',
                      strides=[1,2,2], blocks=[1,1,1], epsilon=1.0,
                      use_unshared_regions=True, unshared_offset_region=[2], softmax_mode=True,
-                     offsets_initializer='ones', input_shape=(3,10,11))
+                     offsets_initializer='ones', input_shape=(3, 10, 11))
             l2 = Mex(num_instances=3, padding='VALID',
-                     strides=[1,2,2], blocks=[1,1,1], epsilon=1.0,
+                     strides=[1,2,2], blocks=[1, 1, 1], epsilon=1.0,
                      offsets_initializer='ones', use_unshared_regions=True,
                      unshared_offset_region=[2],
                      softmax_mode=True, channels_last=True, input_shape=(10, 11, 3))
@@ -82,13 +82,13 @@ class KerasSimilarityTests(tf.test.TestCase):
 
     def test_attributes(self):
         l = Similarity(num_instances=5, similarity_function='L1',
-                       strides=[2, 3], ksize=[3, 2], padding='VALID',
+                       strides=[2, 3], blocks=[3, 2], padding='VALID',
                        normalization_term=False, normalization_term_fudge=1.0,
                        ignore_nan_input=True, out_of_bounds_value=1.0, input_shape=(3, 40, 40))
         model = keras.models.Sequential([l])
         model.compile(optimizer='adam', loss=lambda a, b: tf.constant([0], tf.float32))
         op = l.op.op  # type: tf.Operation
-        self.assertEqual(op.get_attr('ksize'), [3, 2])
+        self.assertEqual(op.get_attr('blocks'), [3, 2])
         self.assertEqual(op.get_attr('strides'), [2, 3])
         self.assertEqual(op.get_attr('padding'), [0, 0])
         self.assertEqual(op.get_attr('normalization_term'), False)
@@ -97,9 +97,9 @@ class KerasSimilarityTests(tf.test.TestCase):
         self.assertNear(op.get_attr('normalization_term_fudge'), 1.0, 0.001)
         self.assertEqual(op.get_attr('out_of_bounds_value'), 1.0)
 
-    def _run_shape_test(self, num_instances, padding, strides, ksize, input_shape, output_shape):
+    def _run_shape_test(self, num_instances, padding, strides, blocks, input_shape, output_shape):
         l = Similarity(num_instances=num_instances, similarity_function='L1',
-                       strides=strides, ksize=ksize, padding=padding,
+                       strides=strides, blocks=blocks, padding=padding,
                        normalization_term=False, normalization_term_fudge=1.0,
                        ignore_nan_input=True, out_of_bounds_value=1.0, input_shape=input_shape)
         model = keras.models.Sequential([l])
@@ -121,10 +121,10 @@ class KerasSimilarityTests(tf.test.TestCase):
     def test_channels_last(self):
         with self.test_session():
                 l1 = Similarity(num_instances=3, padding='VALID',
-                                strides=[2, 2], ksize=[1, 1],
+                                strides=[2, 2], blocks=[1, 1],
                                 templates_initializer='ones', weights_initializer='ones', input_shape=(3, 10, 11))
                 l2 = Similarity(num_instances=3, padding='VALID',
-                                strides=[2,2], ksize=[1,1],
+                                strides=[2,2], blocks=[1,1],
                                 templates_initializer='ones', weights_initializer='ones',
                                 channels_last=True, input_shape=(10, 11, 3))
                 model1 = keras.models.Sequential([l1])

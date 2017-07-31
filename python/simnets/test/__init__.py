@@ -22,14 +22,14 @@ class SimilarityTests(tf.test.TestCase):
             with self.subTest(**tst):
                 with self.test_session():
                     if tst['padding'] == 'SAME':
-                        tst['padding'] = [e//2 for e in tst['ksizes']]
+                        tst['padding'] = [e//2 for e in tst['blocks']]
                     else:
                         tst['padding'] = [0, 0]
                     images = np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
                     #images = np.ones((1,3,800,800), np.float32)
                     images = tf.constant(images)
 
-                    params_dim = (1,tst['im_dims'][1],tst['ksizes'][0], tst['ksizes'][1])
+                    params_dim = (1,tst['im_dims'][1],tst['blocks'][0], tst['blocks'][1])
                     weights = np.absolute(np.random.normal(size=params_dim).astype(tst['dtype']))
                     #weights = np.ones((1,3,3,3), np.float32)
                     weights = tf.constant(weights)
@@ -38,7 +38,7 @@ class SimilarityTests(tf.test.TestCase):
                     #templates = np.zeros((1,3,3,3), np.float32)
                     templates = tf.constant(templates)
                     args = (images, templates, weights)
-                    kwargs = dict(ksize=tst['ksizes'], strides=tst['strides'],
+                    kwargs = dict(blocks=tst['blocks'], strides=tst['strides'],
                                   padding=tst['padding'], normalization_term=tst['normalize'],
                                   ignore_nan_input=tst['ignore_nan'], similarity_function=tst['similarity_function'])
                     with tf.device(tst['device']):
@@ -55,14 +55,14 @@ class SimilarityTests(tf.test.TestCase):
                 with self.test_session():
                     np.random.seed(167)
                     if tst['padding'] == 'SAME':
-                        tst['padding'] = [e//2 for e in tst['ksizes']]
+                        tst['padding'] = [e//2 for e in tst['blocks']]
                     else:
                         tst['padding'] = [0, 0]
                     images_np = 16.0 + np.random.normal(size=tst['im_dims']).astype(tst['dtype'])
                     #images_np = np.ones(tst['im_dims'], tst['dtype'])
                     images = tf.constant(images_np)
 
-                    params_dim = (1,tst['im_dims'][1],tst['ksizes'][0], tst['ksizes'][1])
+                    params_dim = (1,tst['im_dims'][1],tst['blocks'][0], tst['blocks'][1])
                     weights_np = 3.0 + np.absolute(np.random.normal(size=params_dim).astype(tst['dtype']))
                     #weights_np = np.ones(params_dim, tst['dtype'])
                     weights = tf.constant(weights_np)
@@ -71,7 +71,7 @@ class SimilarityTests(tf.test.TestCase):
                     #templates_np = np.zeros(params_dim, tst['dtype'])
                     templates = tf.constant(templates_np)
                     args = (images, templates, weights)
-                    kwargs = dict(ksize=tst['ksizes'], strides=tst['strides'],
+                    kwargs = dict(blocks=tst['blocks'], strides=tst['strides'],
                                   padding=tst['padding'], normalization_term=tst['normalize'],
                                   ignore_nan_input=tst['ignore_nan'], similarity_function=tst['similarity_function'])
 
@@ -100,7 +100,7 @@ class SimilarityTests(tf.test.TestCase):
                       'im_dims': [(a,b,c,d) for a in [1, 2] for b in [1, 3] for c in [40] for d in [40]],
                       'dtype': [np.float64],
                       'device': ['/cpu:0', '/gpu:0'],
-                      'ksizes': [[s1,s2] for s1 in [1,3] for s2 in [1,3]],
+                      'blocks': [[s1,s2] for s1 in [1,3] for s2 in [1,3]],
                       'padding': ['SAME', 'VALID'],
                       'ignore_nan': [False],
                       'normalize': [False],
@@ -113,7 +113,7 @@ class SimilarityTests(tf.test.TestCase):
                       'im_dims': [[1,3,30,30]],
                       'dtype': [np.float32, np.float64],
                       'device': ['/cpu:0', '/gpu:0'],
-                      'ksizes': [[3,3]],
+                      'blocks': [[3,3]],
                       'padding': ['SAME'],
                       'ignore_nan': [True, False],
                       'normalize': [True, False],
@@ -125,7 +125,7 @@ class SimilarityTests(tf.test.TestCase):
                       'im_dims': [[1,1,1,1]],
                       'dtype': [np.float32, np.float64],
                       'device': ['/cpu:0', '/gpu:0'],
-                      'ksizes': [[1,1]],
+                      'blocks': [[1,1]],
                       'padding': ['SAME', 'VALID'],
                       'ignore_nan': [False],
                       'normalize': [False],
@@ -137,7 +137,7 @@ class SimilarityTests(tf.test.TestCase):
                       'im_dims': [[1,3,10,10]],
                       'dtype': [np.float64, np.float32],
                       'device': ['/cpu:0', '/gpu:0'],
-                      'ksizes': [[1,1], [3,3]],
+                      'blocks': [[1,1], [3,3]],
                       'padding': ['VALID'],
                       'ignore_nan': [False, True],
                       'normalize': [True],
@@ -156,7 +156,7 @@ class SimilarityTests(tf.test.TestCase):
         templates = np.random.normal(size=params_dim).astype(np.float32)
         templates = tf.constant(templates)
         args = (images, templates, weights)
-        kwargs = dict(ksize=[3, 2], strides=[1, 2],
+        kwargs = dict(blocks=[3, 2], strides=[1, 2],
                       padding=[0, 1], normalization_term=True,
                       ignore_nan_input=True, similarity_function='L1',
                       normalization_term_fudge=1e-1,
@@ -169,7 +169,7 @@ class SimilarityTests(tf.test.TestCase):
 
         for grad in [grad_input, grad_templates, grad_weights]:
             op = grad.op  # type: tf.Operation
-            self.assertEqual(op.get_attr('ksize'), [3, 2])
+            self.assertEqual(op.get_attr('blocks'), [3, 2])
             self.assertEqual(op.get_attr('strides'), [1, 2])
             self.assertEqual(op.get_attr('padding'), [0, 1])
             self.assertEqual(op.get_attr('normalization_term'), True)

@@ -19,6 +19,10 @@ class SimilarityTests(tf.test.TestCase):
     def _run_ref_test(self, tests_dict):
         all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
         for idx, tst in enumerate(all_tests):
+            if (not tst['normalization_term']) and tst['ignore_nan']:
+                continue
+            if tst['similarity_function'] != 'L2' and (tst['normalization_term'] or tst['ignore_nan']):
+                continue
             with self.subTest(**tst):
                 with self.test_session():
                     if tst['padding'] == 'SAME':
@@ -39,7 +43,7 @@ class SimilarityTests(tf.test.TestCase):
                     templates = tf.constant(templates)
                     args = (images, templates, weights)
                     kwargs = dict(blocks=tst['blocks'], strides=tst['strides'],
-                                  padding=tst['padding'], normalization_term=tst['normalize'],
+                                  padding=tst['padding'], normalization_term=tst['normalization_term'],
                                   ignore_nan_input=tst['ignore_nan'], similarity_function=tst['similarity_function'])
                     with tf.device(tst['device']):
                         sim = similarity(*args, **kwargs)
@@ -52,6 +56,10 @@ class SimilarityTests(tf.test.TestCase):
         all_tests = [dict(zip(tests_dict.keys(), v)) for v in itertools.product(*tests_dict.values())]
         for idx, tst in enumerate(all_tests):
             with self.subTest(**tst):
+                if (not tst['normalization_term']) and tst['ignore_nan']:
+                    continue
+                if tst['similarity_function'] != 'L2' and (tst['normalization_term'] or tst['ignore_nan']):
+                    continue
                 with self.test_session():
                     np.random.seed(167)
                     if tst['padding'] == 'SAME':
@@ -72,7 +80,7 @@ class SimilarityTests(tf.test.TestCase):
                     templates = tf.constant(templates_np)
                     args = (images, templates, weights)
                     kwargs = dict(blocks=tst['blocks'], strides=tst['strides'],
-                                  padding=tst['padding'], normalization_term=tst['normalize'],
+                                  padding=tst['padding'], normalization_term=tst['normalization_term'],
                                   ignore_nan_input=tst['ignore_nan'], similarity_function=tst['similarity_function'])
 
                     with tf.device(tst['device']):
@@ -102,8 +110,8 @@ class SimilarityTests(tf.test.TestCase):
                       'device': ['/cpu:0', '/gpu:0'],
                       'blocks': [[s1,s2] for s1 in [1,3] for s2 in [1,3]],
                       'padding': ['SAME', 'VALID'],
+                      'normalization_term': [False],
                       'ignore_nan': [False],
-                      'normalize': [False],
                       'similarity_function': ['L2']}
         self._run_ref_test(tests_dict)
 
@@ -115,8 +123,8 @@ class SimilarityTests(tf.test.TestCase):
                       'device': ['/cpu:0', '/gpu:0'],
                       'blocks': [[3,3]],
                       'padding': ['SAME'],
+                      'normalization_term': [True, False],
                       'ignore_nan': [True, False],
-                      'normalize': [True, False],
                       'similarity_function': ['L2']}
         self._run_ref_test(tests_dict)
 
@@ -127,8 +135,8 @@ class SimilarityTests(tf.test.TestCase):
                       'device': ['/cpu:0', '/gpu:0'],
                       'blocks': [[1,1]],
                       'padding': ['SAME', 'VALID'],
+                      'normalization_term': [False],
                       'ignore_nan': [False],
-                      'normalize': [False],
                       'similarity_function': ['L1']}
         self._run_ref_test(tests_dict)
 
@@ -140,7 +148,7 @@ class SimilarityTests(tf.test.TestCase):
                       'blocks': [[1,1], [3,3]],
                       'padding': ['VALID'],
                       'ignore_nan': [False, True],
-                      'normalize': [True],
+                      'normalization_term': [True],
                       'similarity_function': ['L2', 'L1'],
                       'kind': ['weights', 'templates', 'input']}
         self._run_grad_test(tests_dict)

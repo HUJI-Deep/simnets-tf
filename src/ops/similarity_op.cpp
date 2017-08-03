@@ -87,11 +87,13 @@ performs the following:
 2. For the simplest version, for output element e = `[b, c, i, j]`, compute
    output[b, c, i ,j] = sum(weights[c] * phi(templates[c], patches[i, j]))
    where phi is either -|a - b|_1 (l1) or -|a - b|_2 (l2)
-In detail:
+In detail the basic equation is:
     output[b, c, i, j] =
         sum_{dc, di, dj} templates[c, dc, di, dj] *
                            phi(input[b, dc, strides[0] * i + di - padding[0],
                                             strides[1] * j + dj - padding[1]], templates[c, dc, di, dj]
+the different parameters change the behaviour as described below.
+
 input: A 4-D tensor. with dimensions `[batch, in_channels, in_height, in_width]`.
 templates: A 4-D tensor of shape
     `[out_channels, in_channels, filter_height, filter_width]`
@@ -105,10 +107,18 @@ strides: 1-D tensor of length 2.  The stride of the sliding window
     for the height and width dimension of `input`.
 padding: 1-D tensor of length 2.  The padding to use
     for the height and width dimension of `input`.
-normalization_term:
-normalization_term_fudge:
-ignore_nan_input:
-out_of_bounds_value:
+normalization_term: boolean
+    if true, add a normalization term to the output, used to make the L2 version
+    of this operator into a proper (log) probability measure. the normalization term is
+    -0.5 * K * log(2*pi) where K is the total block size, or the number of non-nan
+    elements in the block if ignore_nan is on.
+normalization_term_fudge: float
+    TODO
+ignore_nan_input: boolean
+    if true, and when using L2 && normalization term compute the probability while
+    marginalizing over elements which are nan
+out_of_bounds_value: float
+    value to use for elements outside the bounds
 )doc");
 
 

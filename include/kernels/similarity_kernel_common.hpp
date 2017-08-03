@@ -103,6 +103,10 @@ SimilarityKernelCommon::SimilarityKernelCommon(tensorflow::OpKernelConstruction 
     OP_REQUIRES_OK(context, context->GetAttr("normalization_term", &normalization_term_));
     OP_REQUIRES_OK(context, context->GetAttr("normalization_term_fudge", &normalization_term_fudge_));
     OP_REQUIRES_OK(context, context->GetAttr("ignore_nan_input", &ignore_nan_input_));
+    OP_REQUIRES(context, !normalization_term_ || (similarity_function_ == SIM_FUNC_L2),
+                tensorflow::errors::InvalidArgument("normalization_term is relevant only if similarity_function is L2"));
+    OP_REQUIRES(context, !ignore_nan_input_ || normalization_term_,
+                tensorflow::errors::InvalidArgument("ignore_nan is relevant only if normalization_term is true"));
     OP_REQUIRES_OK(context, context->GetAttr("out_of_bounds_value", &out_of_bounds_value_));
 }
 

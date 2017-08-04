@@ -110,3 +110,4 @@ def mex(*args, **kwargs):
     kwargs['strides'] = _expand_dim_specification(image_shape, kwargs['strides'])
     kwargs['padding'] = _expand_dim_specification(image_shape, kwargs['padding'])
     return _mex(*args, **kwargs)
+mex.__doc__ = _mex.__doc__

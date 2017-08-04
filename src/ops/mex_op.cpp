@@ -71,18 +71,55 @@ REGISTER_OP("Mex")
         .Attr("use_unshared_regions: bool = true")
         .Attr("shared_offset_region: list(int) = [-1]")
         .Attr("unshared_offset_region: list(int) = [-1]")
-        .SetShapeFn(MexShape);
+        .SetShapeFn(MexShape)
 // TODO: Address channels_first in documentation
-//      .Doc(R"doc(
-// Performs sum pooling on the input.
-// Each entry in `output` is the sum of the corresponding size `blocks`
-// window in `value`.
-// value: 4-D with shape `[batch, height, width, channels]`.
-// blocks: The size of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
-// strides: The stride of the sliding window for each dimension of `value` (batch and channel dimension must be 1).
-// padding: The type of padding algorithm to use.
-// output: The sum pooled output tensor.
-// )doc");
+        .Doc(R"doc(
+Computes the MEX layer given 4-D `input` and 5-D `offsets` tensors.
+As defined in `https://arxiv.org/abs/1506.03059`
+Given an input tensor of shape `[batch, in_channels, in_height, in_width]`
+and a offsets tensor of shape
+`[num_regions, num_instances, filter_channels, filter_height, filter_width]`,  where
+num_regions is calculated from the output dimensions and the shared/unshared offsets parmaeter
+this op performs the following:
+Extract virtual patches of size `blocks` from the input tensor,
+according to the `padding`, `strides` and `blocks` parameters.
+this results in a 3D grid of patches indexed by c,i,j.
+For each output element we select the corresponding patch and offsets region
+then calculate:
+         (1/epsilon) * log((1/n) * sum(exp(epsilon*(patch + region))))
+
+the different parameters change the behaviour as described below.
+
+input: A 4-D tensor. with dimensions `[batch, in_channels, in_height, in_width]`.
+offsets: A 5-D tensor of shape
+    `[num_regions, num_instances, filter_channels, filter_height, filter_width]`
+    must be non negative!
+output: A 4-D tensor of shape
+    `[batch, out_channels, out_height, out_width]`
+num_instances: the number of instances of the layer.
+softmax_mode: in softmax mode we do not divide by the patch size inside of the log
+blocks: list of length 3.  The 3D dimensions of the blocks.
+strides: list of length 3.  The stride of the sliding window
+    for the dimensions of `input`.
+padding: list of length 3.  The padding to use
+    for the dimensions of `input`.
+epsilon: the epsilon parameter. can be +inf, -inf
+blocks_out_of_bounds_value: value to use for out of bounds elements
+blocks_round_down: controls the calculation of the output size.
+                   with round_down it is:
+                     image_size + 2 * pad_size - patch_size) / stride + 1
+                   without it is:
+                     static_cast<int>(std::ceil(static_cast<float>(image_size + 2 * pad_size - patch_size) / stride)) + 1
+use_unshared_regions: alternative to defining a shared region, unshared region.
+shared_offset_region: the region in which offsets are shared.
+                      a value of -1 is replaced by the entire respective dimension.
+                      can be a list of length 3, or 1. if it is of length 1 [d], it is
+                      expanded to [-1, d, d]
+unshared_offset_region: the region in which offsets are unshared.
+                        a value of -1 is replaced by the entire respective dimension.
+                        can be a list of length 3, or 1. if it is of length 1 [d], it is
+                        expanded to [-1, d, d]
+)doc");
 
 REGISTER_OP("MexInputGrad")
         .Input("input: T")

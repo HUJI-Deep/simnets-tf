@@ -74,7 +74,7 @@ REGISTER_OP("Similarity")
         .Attr("out_of_bounds_value: float = 0.0")
         .SetShapeFn(SimilarityShape)
         .Doc(R"doc(
-Computes a 2-D similarity given 4-D `input` `templates` and `weights` tensors.
+Computes a similarity measure given 4-D `input` `templates` and `weights` tensors.
 As defined in `https://arxiv.org/abs/1506.03059`
 Given an input tensor of shape `[batch, in_channels, in_height, in_width]`
 and a templates, weights tensor of shape
@@ -102,22 +102,22 @@ weights: A 4-D tensor of shape
     must be non negative!
 output: A 4-D tensor of shape
     `[batch, out_channels, out_height, out_width]`
-blocks: 1-D tensor of length 2.  The height and width of the blocks.
-strides: 1-D tensor of length 2.  The stride of the sliding window
+blocks: list of length 2.  The height and width of the blocks.
+strides: list of length 2.  The stride of the sliding window
     for the height and width dimension of `input`.
-padding: 1-D tensor of length 2.  The padding to use
+padding: list of length 2.  The padding to use
     for the height and width dimension of `input`.
-normalization_term: boolean
+normalization_term:
     if true, add a normalization term to the output, used to make the L2 version
     of this operator into a proper (log) probability measure. the normalization term is
     -0.5 * K * log(2*pi) where K is the total block size, or the number of non-nan
     elements in the block if ignore_nan is on.
-normalization_term_fudge: float
+normalization_term_fudge:
     TODO
-ignore_nan_input: boolean
-    if true, and when using L2 && normalization term compute the probability while
+ignore_nan_input:
+    if true, and when using L2 with normalization term compute the probability while
     marginalizing over elements which are nan
-out_of_bounds_value: float
+out_of_bounds_value:
     value to use for elements outside the bounds
 )doc");
 

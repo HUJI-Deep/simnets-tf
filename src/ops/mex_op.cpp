@@ -75,20 +75,24 @@ REGISTER_OP("Mex")
 // TODO: Address channels_first in documentation
         .Doc(R"doc(
 Computes the MEX layer given 4-D `input` and 5-D `offsets` tensors.
-As defined in `https://arxiv.org/abs/1506.03059`
+
+As defined in https://arxiv.org/abs/1506.03059
+
 Given an input tensor of shape `[batch, in_channels, in_height, in_width]`
 and a offsets tensor of shape
 `[num_regions, num_instances, filter_channels, filter_height, filter_width]`,  where
 num_regions is calculated from the output dimensions and the shared/unshared offsets parmaeter
-this op performs the following:
+
+This op performs the following:
 Extract virtual patches of size `blocks` from the input tensor,
 according to the `padding`, `strides` and `blocks` parameters.
 this results in a 3D grid of patches indexed by c,i,j.
 For each output element we select the corresponding patch and offsets region
 then calculate:
-         (1/epsilon) * log((1/n) * sum(exp(epsilon*(patch + region))))
 
-the different parameters change the behaviour as described below.
+.. math:: \frac{1}{\epsilon} \log\left(\frac{1}{n} \sum\exp(\epsilon (patch + region))\right)
+
+The different parameters change the behaviour as described below.
 
 input: A 4-D tensor. with dimensions `[batch, in_channels, in_height, in_width]`.
 offsets: A 5-D tensor of shape
@@ -106,15 +110,21 @@ padding: list of length 3.  The padding to use
 epsilon: the epsilon parameter. can be +inf, -inf
 blocks_out_of_bounds_value: value to use for out of bounds elements
 blocks_round_down: controls the calculation of the output size.
-                   with round_down it is:
-                     image_size + 2 * pad_size - patch_size) / stride + 1
-                   without it is:
-                     static_cast<int>(std::ceil(static_cast<float>(image_size + 2 * pad_size - patch_size) / stride)) + 1
+                with round_down it is::
+
+                    image_size + 2 * pad_size - patch_size) / stride + 1
+
+                without it is::
+
+                    static_cast<int>(
+                       std::ceil(static_cast<float>(
+                           image_size + 2 * pad_size - patch_size) / stride)) + 1
+
 use_unshared_regions: alternative to defining a shared region, unshared region.
 shared_offset_region: the region in which offsets are shared.
-                      a value of -1 is replaced by the entire respective dimension.
-                      can be a list of length 3, or 1. if it is of length 1 [d], it is
-                      expanded to [-1, d, d]
+                    a value of -1 is replaced by the entire respective dimension.
+                    can be a list of length 3, or 1. if it is of length 1 [d], it is
+                    expanded to [-1, d, d]
 unshared_offset_region: the region in which offsets are unshared.
                         a value of -1 is replaced by the entire respective dimension.
                         can be a list of length 3, or 1. if it is of length 1 [d], it is

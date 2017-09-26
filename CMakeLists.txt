@@ -4,11 +4,15 @@ project(simnets-tf)
 
 set(SIMNETS_PYTHON_VERSION "3.5" CACHE STR "Python version to use")
 option(SIMNETS_WITH_CUDA "Compile with CUDA enabled" 1)
+option(SIMNETS_OLD_CXX_ABI "Compile with old ABI change this if you get unresolved symbols" 1)
 
 find_package(PythonInterp ${SIMNETS_PYTHON_VERSION})
 
 if(UNIX)
-    set(CMAKE_CXX_FLAGS "-std=c++0x -fPIC  -Wall -D_GLIBCXX_USE_CXX11_ABI=0" ${CMAKE_CXX_FLAGS})
+    set(CMAKE_CXX_FLAGS "-std=c++0x -fPIC  -Wall" ${CMAKE_CXX_FLAGS})
+    if(SIMNETS_OLD_CXX_ABI)
+        set(CMAKE_CXX_FLAGS "-D_GLIBCXX_USE_CXX11_ABI=0 ${CMAKE_CXX_FLAGS}")
+    endif()
 endif()
 
 if (SIMNETS_WITH_CUDA)

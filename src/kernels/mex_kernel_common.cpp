@@ -4,6 +4,28 @@
 
 using namespace tensorflow;
 
+/// Set the stride and padding by replacing -1 with the appropriate image dimension
+std::vector<int> ExpandDimSpec(std::vector<int> image_shape, std::vector<int> dim_spec)
+{
+    int idx_fix = 0;
+    if (image_shape.size() == 4)
+    {
+        idx_fix = 1;
+    }
+    if (dim_spec.size() == 2)
+    {
+        dim_spec.insert(dim_spec.begin(), -1);
+    }
+    for (int i = 0; i < 3; ++i)
+    {
+        if (dim_spec[i] == -1)
+        {
+            dim_spec[i] = image_shape[idx_fix + i];
+        }
+    }
+    return dim_spec;
+}
+
 MEXKernelCommon::MEXKernelCommon(tensorflow::OpKernelConstruction *context)
         : tensorflow::OpKernel(context) {
     OP_REQUIRES_OK(context, context->GetAttr("softmax_mode", &softmax_mode_));
@@ -39,6 +61,9 @@ MEXKernelCommon::MEXKernelCommon(tensorflow::OpKernelConstruction *context)
 // Parameters:
 // Offsets should be [num_regions_, num_instances_, block_c_, block_h_, block_w_]
 void MexDimensionsData::CalculateDimensions() {
+    std::vector<int> image_shape({-1, channels_, height_, width_});
+    padding_ = ExpandDimSpec(image_shape, padding_);
+    strides_ = ExpandDimSpec(image_shape, strides_);
 
     pad_c_ = padding_[0];
     pad_h_ = padding_[1];

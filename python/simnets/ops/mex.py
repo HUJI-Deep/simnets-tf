@@ -33,7 +33,7 @@ def _mex_dims_helper(input_dim, num_instances,
     add_array(unshared_offset_region)
 
     return _mex_helper.get_mex_offsets_nregions(*args)
-_mex = _so.mex
+mex = _so.mex
 _mex_input_grad = _so.mex_input_grad
 _mex_offsets_grad = _so.mex_offsets_grad
 _mex_ref = _so.mex_ref  # For tests
@@ -103,10 +103,3 @@ def _expand_dim_specification(image_shape, dim_spec):
             dim_spec[i] = image_shape[i+1] #  +1 for batch dimension
     return dim_spec
 
-_wraps(_mex)
-def mex(*args, **kwargs):
-    image_shape = args[0].get_shape().as_list()
-    kwargs['strides'] = _expand_dim_specification(image_shape, kwargs['strides'])
-    kwargs['padding'] = _expand_dim_specification(image_shape, kwargs['padding'])
-    return _mex(*args, **kwargs)
-mex.__doc__ = _mex.__doc__

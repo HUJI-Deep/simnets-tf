@@ -6,6 +6,7 @@ Contents
 =========
 .. toctree::
 
+   intro
    simnets
 
 Indices and tables

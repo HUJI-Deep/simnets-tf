@@ -21,7 +21,7 @@ if (SIMNETS_WITH_CUDA)
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_30,code=\"sm_30,compute_30\";-gencode arch=compute_35,code=\"sm_35,compute_35\";-gencode arch=compute_52,code=\"sm_52,compute_52\")
 endif()
 
-execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; print(tf.sysconfig.get_include())"
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; import sys; sys.stdout.write(tf.sysconfig.get_include())"
     RESULT_VARIABLE TF_RES
     OUTPUT_VARIABLE TF_INCLUDES)
 
@@ -31,8 +31,8 @@ endif()
 
 include_directories(include
                     third_party/maps/include
-                    ${TF_INCLUDES})
-
+                    ${TF_INCLUDES}
+                    "${TF_INCLUDES}/external/nsync/public")
 add_compile_options(-DEIGEN_USE_THREADS)
 
 add_library(mex_dims_helper SHARED src/kernels/mex_dims_helper.cpp
@@ -71,8 +71,15 @@ add_custom_target(test_simnet_ops
         ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_INSTALL_PREFIX} TF_CPP_MIN_LOG_LEVEL=3 ${PYTHON_EXECUTABLE} -m unittest simnets.test
         DEPENDS clion_install)
 
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.util import get_platform; import sys; sys.stdout.write(get_platform())"
+        OUTPUT_VARIABLE PY_PLATFORM)
+        
+string(REPLACE "." "" PY_VER_NO_DOT ${SIMNETS_PYTHON_VERSION})
+
+set(BDIST_WHEEL_PARAMS bdist_wheel --plat-name=${PY_PLATFORM} --python-tag="cp${PY_VER_NO_DOT}")
+
 add_custom_target(create_wheel
-        ${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/setup.py bdist_wheel
+        ${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/setup.py ${BDIST_WHEEL_PARAMS}
         WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
         DEPENDS clion_install)
 

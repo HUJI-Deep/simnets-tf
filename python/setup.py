@@ -1,7 +1,8 @@
 from __future__ import print_function
 from __future__ import division
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Distribution
+import io
 
 # To use a consistent encoding
 from os import path
@@ -9,8 +10,12 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with io.open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
+
+class BinaryDistribution(Distribution):
+    def is_pure(self):
+        return False
 
 setup(
     name='simnets',
@@ -20,6 +25,7 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.1',
 
+    distclass=BinaryDistribution,
     description='SimNets implementation in tensorflow',
     long_description=long_description,
 

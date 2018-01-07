@@ -113,8 +113,9 @@ def similarity(input, templates, weights, similarity_function=None, blocks=None,
       A `Tensor`. Has the same type as `input`. A 4-D tensor of shape
       `[batch, out_channels, out_height, out_width]`
       """
-    _similarity(input, templates, weights, similarity_function=similarity_function, blocks=blocks, strides=strides,
-                padding=padding,
-                normalization_term=normalization_term, normalization_term_fudge=normalization_term_fudge,
-                ignore_nan_input=ignore_nan_input, out_of_bounds_value=out_of_bounds_value,
-                name=name)
+    return _similarity(input, templates, weights, similarity_function=similarity_function, blocks=blocks,
+                       strides=strides,
+                       padding=padding,
+                       normalization_term=normalization_term, normalization_term_fudge=normalization_term_fudge,
+                       ignore_nan_input=ignore_nan_input, out_of_bounds_value=out_of_bounds_value,
+                       name=name)

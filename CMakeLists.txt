@@ -17,7 +17,7 @@ endif()
 
 if (SIMNETS_WITH_CUDA)
     find_package(CUDA REQUIRED)
-    set(CUDA_NVCC_FLAGS -std=c++11 -DEIGEN_USE_GPU --expt-relaxed-constexpr)
+    set(CUDA_NVCC_FLAGS -std=c++11 -DSIMNETS_WITH_CUDA=1 -DEIGEN_USE_GPU --expt-relaxed-constexpr)
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS};-gencode arch=compute_30,code=\"sm_30,compute_30\";-gencode arch=compute_35,code=\"sm_35,compute_35\";-gencode arch=compute_52,code=\"sm_52,compute_52\")
 endif()
 
@@ -29,11 +29,22 @@ if (NOT ${TF_RES} EQUAL 0)
     message(SEND_ERROR  "Can't import tensorflow")
 endif()
 
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import tensorflow as tf; import sys; sys.stdout.write(tf.sysconfig.get_lib())"
+RESULT_VARIABLE TF_RES
+OUTPUT_VARIABLE TF_LIBS_DIR)
+
 include_directories(include
                     third_party/maps/include
                     ${TF_INCLUDES}
                     "${TF_INCLUDES}/external/nsync/public")
+
+link_directories(${TF_LIBS_DIR})
+
 add_compile_options(-DEIGEN_USE_THREADS)
+
+if (SIMNETS_WITH_CUDA)
+    add_compile_options(-DSIMNETS_WITH_CUDA=1)
+endif()
 
 add_library(mex_dims_helper SHARED src/kernels/mex_dims_helper.cpp
         src/kernels/mex_kernel_common.cpp)
@@ -66,6 +77,9 @@ else()
             src/kernels/mex_kernel_cpu.cpp
             src/kernels/mex_grad_kernel_cpu.cpp)
 endif()
+
+target_link_libraries(mex_dims_helper tensorflow_framework)
+target_link_libraries(simnet_ops tensorflow_framework)
 
 add_custom_target(test_simnet_ops
         ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_INSTALL_PREFIX} TF_CPP_MIN_LOG_LEVEL=3 ${PYTHON_EXECUTABLE} -m unittest simnets.test

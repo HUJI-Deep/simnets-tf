@@ -187,8 +187,9 @@ def mex(input, offsets, num_instances, softmax_mode=None, padding=None, strides=
     A `Tensor`. Has the same type as `input`. A 4-D tensor of shape
     `[batch, out_channels, out_height, out_width]`
 """
-    _mex(input, offsets, num_instances, softmax_mode=softmax_mode, padding=padding, strides=strides, blocks=blocks,
-         epsilon=epsilon,
-         blocks_out_of_bounds_value=blocks_out_of_bounds_value, blocks_round_down=blocks_round_down,
-         use_unshared_regions=use_unshared_regions, shared_offset_region=shared_offset_region,
-         unshared_offset_region=unshared_offset_region, name=name)
+    return _mex(input, offsets, num_instances, softmax_mode=softmax_mode, padding=padding, strides=strides,
+                blocks=blocks,
+                epsilon=epsilon,
+                blocks_out_of_bounds_value=blocks_out_of_bounds_value, blocks_round_down=blocks_round_down,
+                use_unshared_regions=use_unshared_regions, shared_offset_region=shared_offset_region,
+                unshared_offset_region=unshared_offset_region, name=name)

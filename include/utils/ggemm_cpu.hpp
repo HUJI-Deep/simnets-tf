@@ -19,8 +19,25 @@
 #ifndef _GGEMM_CPU_H_
 #define _GGEMM_CPU_H_
 #include <cmath>
-#include <cuda.h>
-#include <cuda_runtime.h>
+#ifdef SIMNETS_WITH_CUDA
+    #include <cuda.h>
+    #include <cuda_runtime.h>
+#else
+    #define __host__
+    #define __device__
+    #define __forceinline__
+
+#define VEC_TYPES(typ) \
+struct typ##2 {typ x, y;}; \
+struct typ##3 {typ x, y, z;}; \
+struct typ##4 {typ x, y, z, w;};
+
+VEC_TYPES(int)
+VEC_TYPES(long)
+VEC_TYPES(float)
+VEC_TYPES(double)
+
+#endif
 #include <type_traits>
 
 // Templated vectorized types
@@ -386,6 +403,7 @@ template<typename Dtype> __device__ __host__ __forceinline__
 Dtype ggemm_mul(Dtype a, Dtype b) {
     return a * b;
 }
+
 template<typename Dtype, typename Ntype> __device__ __host__ __forceinline__
 Dtype ggemm_add(Dtype a, Dtype b, Ntype nothing) {
     return a + b;

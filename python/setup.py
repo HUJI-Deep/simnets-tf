@@ -13,19 +13,20 @@ here = path.abspath(path.dirname(__file__))
 with io.open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-class BinaryDistribution(Distribution):
-    def is_pure(self):
-        return False
+compile_mode = open(path.join(here, '.compile_mode'), 'r').read().strip()
+if compile_mode == 'gpu':
+    name = 'simnets'
+else:
+    name = 'simnets-cpu'
 
 setup(
-    name='simnets',
+    name=name,
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.1',
 
-    distclass=BinaryDistribution,
     description='SimNets implementation in tensorflow',
     long_description=long_description,
 

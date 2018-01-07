@@ -103,6 +103,12 @@ install(FILES python/setup.py README.md
 install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>
         DESTINATION "simnets/ops")
 
+if(SIMNETS_WITH_CUDA)
+    install(CODE "file(WRITE ${CMAKE_INSTALL_PREFIX}/.compile_mode \"gpu\")")
+else()
+    install(CODE "file(WRITE ${CMAKE_INSTALL_PREFIX}/.compile_mode \"cpu\")")
+endif()
+
 set_target_properties(simnet_ops PROPERTIES PREFIX "")
 target_include_directories(simnet_ops PUBLIC ${TF_INCLUDES})
 

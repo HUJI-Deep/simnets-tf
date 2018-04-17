@@ -1,0 +1,296 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>simnets.unsupervised.gmm &mdash; simnets 0.0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="simnets 0.0.1.0 documentation" href="../../../index.html"/>
+        <link rel="up" title="simnets.unsupervised" href="../unsupervised.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> simnets
+          
+
+          
+          </a>
+
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../intro.html">simnets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../simnets.html">simnets package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../simnets.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../simnets.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../simnets.html#module-simnets.keras">simnets.keras module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">simnets</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../unsupervised.html">simnets.unsupervised</a> &raquo;</li>
+        
+      <li>simnets.unsupervised.gmm</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for simnets.unsupervised.gmm</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">tensorflow.contrib.factorization</span> <span class="k">import</span> <span class="n">gmm</span> <span class="k">as</span> <span class="n">_gmm</span>
+
+
+<div class="viewcode-block" id="gmm_unsupervised_init"><a class="viewcode-back" href="../../../simnets.unsupervised.html#simnets.unsupervised.gmm.gmm_unsupervised_init">[docs]</a><span class="k">def</span> <span class="nf">gmm_unsupervised_init</span><span class="p">(</span><span class="n">sim_op</span><span class="p">,</span> <span class="n">templates_var</span><span class="p">,</span> <span class="n">weights_var</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initialize a similarity layer using gmm unsupervised learning</span>
+
+<span class="sd">    Initializes the templates and weights using gmm</span>
+<span class="sd">    The function returns two ops. The first is used to initialize the learning and the second should be run iteratively</span>
+<span class="sd">     with all the data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sim_op : tf.Operation | tf.Tensor</span>
+<span class="sd">        the similarity operation (or the tensor which is the output of the similarity)</span>
+<span class="sd">    templates_var : tf.Variable</span>
+<span class="sd">        the templates variable for this similarity layer</span>
+<span class="sd">    weights_var : tf.Variable</span>
+<span class="sd">        the weights variable for this similarity layer</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    A tuple (init_op, update_op) where init_op must be executed by a session before using the update op</span>
+<span class="sd">    and the update_op is the operation that performs the learning.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sim_op</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+        <span class="n">sim_op</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">op</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s1">&#39;Similarity&#39;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;kmeans_unsupervised_init needs a similarity op, got </span><span class="si">%s</span><span class="s1"> instead&#39;</span> <span class="o">%</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">type</span><span class="p">)</span>
+    <span class="k">assert</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sim_op</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">Operation</span><span class="p">))</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;_gmm_init&#39;</span>
+    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+        <span class="n">input_tensor</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">templates_tensor</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">num_instances</span> <span class="o">=</span> <span class="n">templates_tensor</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()</span><span class="o">.</span><span class="n">as_list</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">strides</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">get_attr</span><span class="p">(</span><span class="s1">&#39;strides&#39;</span><span class="p">)</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="n">sim_op</span><span class="o">.</span><span class="n">get_attr</span><span class="p">(</span><span class="s1">&#39;blocks&#39;</span><span class="p">)</span>
+        <span class="n">strides</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">strides</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">strides</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">blocks</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">blocks</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">extract_image_patches</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">input_tensor</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">strides</span><span class="o">=</span><span class="n">strides</span><span class="p">,</span>
+                                           <span class="n">blocks</span><span class="o">=</span><span class="n">blocks</span><span class="p">,</span> <span class="n">rates</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">padding</span><span class="o">=</span><span class="s1">&#39;VALID&#39;</span><span class="p">)</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">=</span> <span class="n">patches</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()</span><span class="o">.</span><span class="n">as_list</span><span class="p">()</span>
+        <span class="n">patches</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">patches</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">])</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">training_op</span> <span class="o">=</span> <span class="n">_gmm</span><span class="p">(</span><span class="n">inp</span><span class="o">=</span><span class="n">patches</span><span class="p">,</span> <span class="n">initial_clusters</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+                                    <span class="n">random_seed</span><span class="o">=</span><span class="mi">33</span><span class="p">,</span> <span class="n">num_clusters</span><span class="o">=</span><span class="n">num_instances</span><span class="p">,</span> <span class="n">covariance_type</span><span class="o">=</span><span class="s1">&#39;diag&#39;</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="s1">&#39;mc&#39;</span><span class="p">)</span>
+        <span class="n">clusters_var</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">global_variables</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="s1">&#39;clusters:0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">clusters</span> <span class="o">=</span> <span class="n">clusters_var</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">clusters_covs_var</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">global_variables</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">name</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span> <span class="o">+</span> <span class="s1">&#39;clusters_covs:0&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">clusters_covs</span> <span class="o">=</span> <span class="n">clusters_covs_var</span><span class="o">.</span><span class="n">op</span><span class="o">.</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># this hacky code makes sure that the gmm code does not add a variable initializer that depends</span>
+        <span class="c1"># on the input, which is usually a placeholder. without it, the global intializer must be run with</span>
+        <span class="c1"># a feed dict, which dows work for keras, and is weird for other code</span>
+        <span class="n">non_gmm_vars</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">global_variables</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span>
+        <span class="n">gmm_vars</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tf</span><span class="o">.</span><span class="n">global_variables</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_default_graph</span><span class="p">()</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">clear_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">GLOBAL_VARIABLES</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">non_gmm_vars</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">add_to_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">GLOBAL_VARIABLES</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="n">initializer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">v</span><span class="o">.</span><span class="n">initializer</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">gmm_vars</span><span class="p">])</span>
+
+        <span class="n">channels</span><span class="p">,</span> <span class="n">block_rows</span><span class="p">,</span> <span class="n">block_cols</span> <span class="o">=</span> <span class="n">templates_tensor</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()</span><span class="o">.</span><span class="n">as_list</span><span class="p">()[</span><span class="mi">1</span><span class="p">:]</span>
+        <span class="n">reshaped_clusters</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">clusters</span><span class="p">,</span> <span class="p">(</span><span class="n">num_instances</span><span class="p">,</span> <span class="n">block_rows</span><span class="p">,</span> <span class="n">block_cols</span><span class="p">,</span> <span class="n">channels</span><span class="p">))</span>
+        <span class="n">reshaped_covs</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">clusters_covs</span><span class="p">,</span> <span class="p">(</span><span class="n">num_instances</span><span class="p">,</span> <span class="n">block_rows</span><span class="p">,</span> <span class="n">block_cols</span><span class="p">,</span> <span class="n">channels</span><span class="p">))</span>
+        <span class="n">transposed_clusters</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">reshaped_clusters</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+        <span class="n">transposed_covs</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">reshaped_covs</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]))</span>
+        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">training_op</span><span class="p">]):</span>
+            <span class="n">assign1</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">templates_var</span><span class="p">,</span> <span class="n">transposed_clusters</span><span class="p">)</span>
+            <span class="n">assign2</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">weights_var</span><span class="p">,</span> <span class="n">transposed_covs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">initializer</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="n">assign1</span><span class="p">,</span> <span class="n">assign2</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;gmm_init_assign&#39;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'0.0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

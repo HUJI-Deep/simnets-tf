@@ -1,0 +1,29 @@
+simnets package
+===============
+
+.. automodule:: simnets
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    simnets.ops
+    simnets.test
+    simnets.unsupervised
+
+Submodules
+----------
+
+simnets\.keras module
+---------------------
+
+.. automodule:: simnets.keras
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+

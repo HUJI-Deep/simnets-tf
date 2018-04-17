@@ -1,0 +1,36 @@
+simnets\.unsupervised package
+=============================
+
+.. automodule:: simnets.unsupervised
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+simnets\.unsupervised\.gmm module
+---------------------------------
+
+.. automodule:: simnets.unsupervised.gmm
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+simnets\.unsupervised\.kmeans module
+------------------------------------
+
+.. automodule:: simnets.unsupervised.kmeans
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+simnets\.unsupervised\.pca module
+---------------------------------
+
+.. automodule:: simnets.unsupervised.pca
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+

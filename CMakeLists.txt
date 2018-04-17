@@ -87,7 +87,7 @@ add_custom_target(test_simnet_ops
 
 execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "from distutils.util import get_platform; import sys; sys.stdout.write(get_platform())"
         OUTPUT_VARIABLE PY_PLATFORM)
-        
+
 string(REPLACE "." "" PY_VER_NO_DOT ${SIMNETS_PYTHON_VERSION})
 
 set(BDIST_WHEEL_PARAMS bdist_wheel --plat-name=${PY_PLATFORM} --python-tag="cp${PY_VER_NO_DOT}")
@@ -97,7 +97,18 @@ add_custom_target(create_wheel
         WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
         DEPENDS clion_install)
 
-install(DIRECTORY python/simnets DESTINATION ".")
+add_custom_target(upload_to_pip
+        ${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/setup.py ${BDIST_WHEEL_PARAMS} upload -r https://pypi.python.org/pypi
+        WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+        DEPENDS clion_install)
+
+
+add_custom_target(upload_to_pip_test
+        ${PYTHON_EXECUTABLE} ${CMAKE_INSTALL_PREFIX}/setup.py ${BDIST_WHEEL_PARAMS} upload -r https://testpypi.python.org/pypi
+        WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+        DEPENDS clion_install)
+
+    install(DIRECTORY python/simnets DESTINATION ".")
 install(FILES python/setup.py README.md
         DESTINATION ".")
 install(FILES $<TARGET_FILE:simnet_ops> $<TARGET_FILE:mex_dims_helper>

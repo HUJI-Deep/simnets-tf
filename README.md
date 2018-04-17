@@ -1,4 +1,7 @@
 # simnets-tf
+
+SimNets is a generalization of Convolutional Neural Networks that was first proposed by Cohen et al. (at [NIPS 2014 DL Workshop](https://arxiv.org/abs/1410.078) and [CVPR 2016](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/Cohen_Deep_SimNets_CVPR_2016_paper.html)), in whish they showed it to be well-suited for classification under limited computional resources. It was later discovered that under some settings SimNets realize [Convolutional Arithmetic Circuits](http://www.jmlr.org/proceedings/papers/v49/cohen16.html), where all computation is done in log-space instead of linear-space. We have previously released an implementation of [SimNets in Caffe](https://github.com/HUJI-Deep/caffe-simnets), and now we release our implementaiton in Tensorflow, with wrapper layers for Keras. You can read the documentation at https://huji-deep.github.io/simnets-tf/.
+
 ## SimNets implementation in TensorFlow
 
 ### Binary installation

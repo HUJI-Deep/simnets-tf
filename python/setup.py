@@ -25,7 +25,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.0.1',
+    version='1.0',
 
     description='SimNets implementation in tensorflow',
     long_description=long_description,
@@ -34,8 +34,8 @@ setup(
     url='https://github.com/HUJI-Deep/simnets-tf',
 
     # Author details
-    author='Elhanan Ilani',
-    author_email='elhanan.ilani@gmail.com',
+    author='HUJI Deep Learning Group',
+    author_email='or+huji.deep@sharir.org',
 
     # Choose your license
     license='MIT',
@@ -46,7 +46,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
 
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
@@ -58,13 +58,14 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 2.7',
         'Programming Language :: C++',
         'Programming Language :: Python :: Implementation :: CPython',
         'Operating System :: POSIX :: Linux',
     ],
 
     # What does your project relate to?
-    keywords='tensorflow simnets machine-learning',
+    keywords='tensorflow simnets machine-learning keras',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().

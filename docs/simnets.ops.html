@@ -1,0 +1,426 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>simnets.ops package &mdash; simnets 0.0.1.0 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="simnets 0.0.1.0 documentation" href="index.html"/>
+        <link rel="up" title="simnets package" href="simnets.html"/>
+        <link rel="next" title="simnets.test package" href="simnets.test.html"/>
+        <link rel="prev" title="simnets package" href="simnets.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> simnets
+          
+
+          
+          </a>
+
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">simnets</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="simnets.html">simnets package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="simnets.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simnets.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="simnets.html#module-simnets.keras">simnets.keras module</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">simnets</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="simnets.html">simnets package</a> &raquo;</li>
+        
+      <li>simnets.ops package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/simnets.ops.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-simnets.ops">
+<span id="simnets-ops-package"></span><h1>simnets.ops package<a class="headerlink" href="#module-simnets.ops" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-simnets.ops.mex">
+<span id="simnets-ops-mex-module"></span><h2>simnets.ops.mex module<a class="headerlink" href="#module-simnets.ops.mex" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="simnets.ops.mex._expand_dim_specification">
+<code class="descclassname">simnets.ops.mex.</code><code class="descname">_expand_dim_specification</code><span class="sig-paren">(</span><em>image_shape</em>, <em>dim_spec</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simnets/ops/mex.html#_expand_dim_specification"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#simnets.ops.mex._expand_dim_specification" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expand mex dimension specification.</p>
+<p>The dimension specification can be 2 or 3 long, it is
+processed in two steps:
+1. If it is of length 2, a -1 is prepended to it
+2. Each dimension with -1 is replaced with the whole corresponding image dimension</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>image_shape</strong> – list(int)
+the shape of the input image, of length 3 (without batch) or 4 (with bach)</li>
+<li><strong>dim_spec</strong> – list(int)
+the specification to be expanded</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The expanded dimension specification</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="simnets.ops.mex.mex">
+<code class="descclassname">simnets.ops.mex.</code><code class="descname">mex</code><span class="sig-paren">(</span><em>input</em>, <em>offsets</em>, <em>num_instances</em>, <em>softmax_mode=None</em>, <em>padding=None</em>, <em>strides=None</em>, <em>blocks=None</em>, <em>epsilon=None</em>, <em>blocks_out_of_bounds_value=None</em>, <em>blocks_round_down=None</em>, <em>use_unshared_regions=None</em>, <em>shared_offset_region=None</em>, <em>unshared_offset_region=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simnets/ops/mex.html#mex"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#simnets.ops.mex.mex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the MEX layer given 4-D <cite>input</cite> and 5-D <cite>offsets</cite> tensors.</p>
+<p>As defined in <a class="reference external" href="https://arxiv.org/abs/1506.03059">https://arxiv.org/abs/1506.03059</a></p>
+<p>Given an input tensor of shape <cite>[batch, in_channels, in_height, in_width]</cite>
+and a offsets tensor of shape
+<cite>[num_regions, num_instances, filter_channels, filter_height, filter_width]</cite>,  where
+num_regions is calculated from the output dimensions and the shared/unshared offsets parmaeter</p>
+<p>This op performs the following:
+Extract virtual patches of size <cite>blocks</cite> from the input tensor,
+according to the <cite>padding</cite>, <cite>strides</cite> and <cite>blocks</cite> parameters.
+this results in a 3D grid of patches indexed by c,i,j.
+For each output element we select the corresponding patch and offsets region
+then calculate:</p>
+<div class="math">
+\[\frac{1}{\epsilon} \log\left(\frac{1}{n} \sum\exp(\epsilon (patch + region))\right)\]</div>
+<p>The different parameters change the behaviour as described below.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>input</strong> – A <cite>Tensor</cite>. Must be one of the following types: <cite>float32</cite>, <cite>float64</cite>.
+A 4-D tensor. with dimensions <cite>[batch, in_channels, in_height, in_width]</cite>.</li>
+<li><strong>offsets</strong> – A <cite>Tensor</cite>. Must have the same type as <cite>input</cite>.
+A 5-D tensor of shape
+<cite>[num_regions, num_instances, filter_channels, filter_height, filter_width]</cite>
+must be non negative!</li>
+<li><strong>num_instances</strong> – An <cite>int</cite>. the number of instances of the layer.</li>
+<li><strong>softmax_mode</strong> – An optional <cite>bool</cite>. Defaults to <cite>False</cite>.
+in softmax mode we do not divide by the patch size inside of the log</li>
+<li><strong>padding</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[0, 0, 0]</cite>.
+list of length 3.  The padding to use
+for the dimensions of <cite>input</cite>.</li>
+<li><strong>strides</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[1, 1, 1]</cite>.
+list of length 3.  The stride of the sliding window
+for the dimensions of <cite>input</cite>.</li>
+<li><strong>blocks</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[1, 1, 1]</cite>.
+list of length 3.  The 3D dimensions of the blocks.</li>
+<li><strong>epsilon</strong> – An optional <cite>float</cite>. Defaults to <cite>1</cite>.
+the epsilon parameter. can be +inf, -inf</li>
+<li><strong>blocks_out_of_bounds_value</strong> – An optional <cite>float</cite>. Defaults to <cite>0</cite>.
+value to use for out of bounds elements</li>
+<li><strong>blocks_round_down</strong> – <p>An optional <cite>bool</cite>. Defaults to <cite>True</cite>.
+controls the calculation of the output size.
+with round_down it is:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">image_size</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pad_size</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">)</span> <span class="o">/</span> <span class="n">stride</span> <span class="o">+</span> <span class="mi">1</span>
+</pre></div>
+</div>
+<p>without it is:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="n">static_cast</span><span class="o">&lt;</span><span class="nb">int</span><span class="o">&gt;</span><span class="p">(</span>
+   <span class="n">std</span><span class="p">::</span><span class="n">ceil</span><span class="p">(</span><span class="n">static_cast</span><span class="o">&lt;</span><span class="nb">float</span><span class="o">&gt;</span><span class="p">(</span>
+       <span class="n">image_size</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">pad_size</span> <span class="o">-</span> <span class="n">patch_size</span><span class="p">)</span> <span class="o">/</span> <span class="n">stride</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+</pre></div>
+</div>
+</li>
+<li><strong>use_unshared_regions</strong> – An optional <cite>bool</cite>. Defaults to <cite>True</cite>.
+alternative to defining a shared region, unshared region.</li>
+<li><strong>shared_offset_region</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[-1]</cite>.
+the region in which offsets are shared.
+a value of -1 is replaced by the entire respective dimension.
+can be a list of length 3, or 1. if it is of length 1 [d], it is
+expanded to [-1, d, d]</li>
+<li><strong>unshared_offset_region</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[-1]</cite>.
+the region in which offsets are unshared.
+a value of -1 is replaced by the entire respective dimension.
+can be a list of length 3, or 1. if it is of length 1 [d], it is
+expanded to [-1, d, d]</li>
+<li><strong>name</strong> – A name for the operation (optional).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A <cite>Tensor</cite>. Has the same type as <cite>input</cite>. A 4-D tensor of shape
+<cite>[batch, out_channels, out_height, out_width]</cite></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-simnets.ops.similarity">
+<span id="simnets-ops-similarity-module"></span><h2>simnets.ops.similarity module<a class="headerlink" href="#module-simnets.ops.similarity" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="simnets.ops.similarity.similarity">
+<code class="descclassname">simnets.ops.similarity.</code><code class="descname">similarity</code><span class="sig-paren">(</span><em>input</em>, <em>templates</em>, <em>weights</em>, <em>similarity_function=None</em>, <em>blocks=None</em>, <em>strides=None</em>, <em>padding=None</em>, <em>normalization_term=None</em>, <em>normalization_term_fudge=None</em>, <em>ignore_nan_input=None</em>, <em>out_of_bounds_value=None</em>, <em>name=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/simnets/ops/similarity.html#similarity"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#simnets.ops.similarity.similarity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes a similarity measure given 4-D <cite>input</cite> <cite>templates</cite> and <cite>weights</cite> tensors.</p>
+<p>As defined in <cite>https://arxiv.org/abs/1506.03059</cite></p>
+<p>Given an input tensor of shape <cite>[batch, in_channels, in_height, in_width]</cite>
+and a templates, weights tensor of shape
+<cite>[out_channels, in_channels, filter_height, filter_width]</cite>, this op
+performs the following:</p>
+<ol class="arabic simple">
+<li>Extract virtual patches of size <cite>blocks</cite> from the input tensor,
+according to the <cite>padding</cite>, <cite>strides</cite> and <cite>blocks</cite> parameters.
+block size in the channels dimension is always the number of input channels.
+this results in a 2D grid of patches indexed by i,j</li>
+<li>For the simplest version, for output element e = <cite>[b, c, i, j]</cite>, compute
+output[b, c, i ,j] = sum(weights[c] * <span class="math">\(phi`(templates[c], patches[i, j]))
+where :math:`phi\)</span> is either -<a href="#id1"><span class="problematic" id="id2">|</span></a>a - b|_1 (l1) or -<a href="#id3"><span class="problematic" id="id4">|</span></a>a - b|_2 (l2)</li>
+</ol>
+<p>Let <span class="math">\(I\)</span> be the input image, <span class="math">\(T\)</span> the temapltes, <span class="math">\(W\)</span> the weights and <span class="math">\(O\)</span> the output,
+<span class="math">\(p\)</span> the padding and <span class="math">\(s\)</span> the strides then the output element at <cite>[b, c, i, j]</cite> is:</p>
+<div class="math">
+\[\sum_{dc, di, dj} T[c, dc, di, dj] \cdot \phi(I[b, dc, s[0] \cdot i + di - p[0],
+                                                       s[1] \cdot j + dj - p[1]],
+                                                       T[c, dc, di, dj])\]</div>
+<p>the different parameters change the behaviour as described below.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>input</strong> – A <cite>Tensor</cite>. Must be one of the following types: <cite>float32</cite>, <cite>float64</cite>.
+A 4-D tensor. with dimensions <cite>[batch, in_channels, in_height, in_width]</cite>.</li>
+<li><strong>templates</strong> – A <cite>Tensor</cite>. Must have the same type as <cite>input</cite>.
+A 4-D tensor of shape
+<cite>[out_channels, in_channels, filter_height, filter_width]</cite></li>
+<li><strong>weights</strong> – A <cite>Tensor</cite>. Must have the same type as <cite>input</cite>.
+A 4-D tensor of shape
+<cite>[out_channels, in_channels, filter_height, filter_width]</cite>
+must be non negative!</li>
+<li><strong>similarity_function</strong> – An optional <cite>string</cite> from: <cite>“L1”, “L2”</cite>. Defaults to <cite>“L2”</cite>.</li>
+<li><strong>blocks</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[3, 3]</cite>.
+list of length 2.  The height and width of the blocks.</li>
+<li><strong>strides</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[2, 2]</cite>.
+list of length 2.  The stride of the sliding window
+for the height and width dimension of <cite>input</cite>.</li>
+<li><strong>padding</strong> – An optional list of <cite>ints</cite>. Defaults to <cite>[0, 0]</cite>.
+list of length 2.  The padding to use
+for the height and width dimension of <cite>input</cite>.</li>
+<li><strong>normalization_term</strong> – An optional <cite>bool</cite>. Defaults to <cite>False</cite>.
+if true, add a normalization term to the output, used to make the L2 version
+of this operator into a proper (log) probability measure. the normalization term is
+-0.5 * K * log(2*pi) where K is the total block size, or the number of non-nan
+elements in the block if ignore_nan is on.</li>
+<li><strong>normalization_term_fudge</strong> – An optional <cite>float</cite>. Defaults to <cite>0.001</cite>.
+TODO</li>
+<li><strong>ignore_nan_input</strong> – An optional <cite>bool</cite>. Defaults to <cite>False</cite>.
+if true, and when using L2 with normalization term compute the probability while
+marginalizing over elements which are nan</li>
+<li><strong>out_of_bounds_value</strong> – An optional <cite>float</cite>. Defaults to <cite>0</cite>.
+value to use for elements outside the bounds</li>
+<li><strong>name</strong> – A name for the operation (optional).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A <cite>Tensor</cite>. Has the same type as <cite>input</cite>. A 4-D tensor of shape
+<cite>[batch, out_channels, out_height, out_width]</cite></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="simnets.test.html" class="btn btn-neutral float-right" title="simnets.test package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="simnets.html" class="btn btn-neutral" title="simnets package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.0.1.0',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

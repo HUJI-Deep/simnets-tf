@@ -1,0 +1,15 @@
+simnets\.test package
+=====================
+
+.. automodule:: simnets.test
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    simnets.test.keras
+

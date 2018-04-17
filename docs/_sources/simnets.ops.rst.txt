@@ -1,0 +1,28 @@
+simnets\.ops package
+====================
+
+.. automodule:: simnets.ops
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+simnets\.ops\.mex module
+------------------------
+
+.. automodule:: simnets.ops.mex
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+simnets\.ops\.similarity module
+-------------------------------
+
+.. automodule:: simnets.ops.similarity
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
